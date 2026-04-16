@@ -1,0 +1,14 @@
+{
+  "name": "quest-atc",
+  "version": "0.1.0",
+  "description": "WebXR ATC radio communication trainer for student pilots on Quest 3",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}
