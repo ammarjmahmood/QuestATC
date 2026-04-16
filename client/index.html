@@ -74,6 +74,32 @@
       color: #aa8; padding: 8px 16px; border-radius: 8px;
       font-family: inherit; font-size: 11px; cursor: pointer;
     }
+
+    /* Debrief button */
+    #debrief-btn {
+      position: fixed; top: 56px; left: 20px; z-index: 20;
+      background: rgba(0,0,0,0.7); border: 1px solid #358;
+      color: #6af; padding: 8px 16px; border-radius: 8px;
+      font-family: inherit; font-size: 11px; cursor: pointer;
+    }
+    #debrief-btn:hover { background: #6af; color: #000; }
+
+    /* Debrief overlay */
+    #debrief-overlay {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.92); overflow-y: auto;
+      padding: 40px; font-size: 14px; line-height: 1.7;
+    }
+    #debrief-overlay.visible { display: block; }
+    #debrief-overlay h2 { color: #00ff88; margin-top: 20px; }
+    #debrief-overlay strong { color: #6af; }
+    #debrief-overlay .grade { font-size: 48px; color: #00ff88; text-align: center; margin: 20px 0; }
+    #debrief-close {
+      position: fixed; top: 20px; right: 20px; z-index: 101;
+      background: #333; border: 1px solid #666; color: #fff;
+      padding: 8px 20px; border-radius: 8px; font-family: inherit;
+      font-size: 13px; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -91,6 +117,12 @@
 
 <button id="vr-btn" disabled>ENTER VR</button>
 <button id="reset-btn">NEW SESSION</button>
+<button id="debrief-btn">REQUEST DEBRIEF</button>
+
+<div id="debrief-overlay">
+  <button id="debrief-close">CLOSE</button>
+  <div id="debrief-content"></div>
+</div>
 
 <script type="importmap">
 {
@@ -684,6 +716,44 @@ async function speakATC(text) {
   }
 }
 
+// ── Debrief ──
+const debriefOverlay = document.getElementById('debrief-overlay');
+const debriefContent = document.getElementById('debrief-content');
+
+document.getElementById('debrief-btn').addEventListener('click', async () => {
+  statusLine.textContent = 'Generating debrief...';
+  try {
+    const res = await fetch('/api/debrief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (data.reply) {
+      // Simple markdown-ish rendering
+      let html = data.reply
+        .replace(/\*\*GRADE:\s*([A-F][+-]?)\*\*/g, '<div class="grade">$1</div>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/^(\d+)\. (.+)$/gm, '<li><strong>$1.</strong> $2</li>')
+        .replace(/→/g, '→')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+      debriefContent.innerHTML = html;
+      debriefOverlay.classList.add('visible');
+      statusLine.textContent = 'Debrief ready';
+    }
+  } catch (err) {
+    statusLine.textContent = 'Debrief failed — try again';
+  }
+});
+
+document.getElementById('debrief-close').addEventListener('click', () => {
+  debriefOverlay.classList.remove('visible');
+});
+
 // ── Reset ──
 document.getElementById('reset-btn').addEventListener('click', async () => {
   await fetch('/api/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
@@ -706,10 +776,15 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Initial ATIS prompt
+// Initial instructions
 setTimeout(() => {
-  addMessage('system', '[ Tune to ATIS 127.875, then contact Ground on 121.9 ]');
+  addMessage('system', '[ ATC Radio Trainer — Pre-Departure Flow ]');
+  addMessage('system', '[ Step 1: Listen to ATIS (request weather) ]');
+  addMessage('system', '[ Step 2: Contact Clearance Delivery ]');
+  addMessage('system', '[ Step 3: Contact Ground for taxi ]');
+  addMessage('system', '[ Step 4: Contact Tower at hold short line ]');
   addMessage('system', '[ Hold SPACE or Quest trigger to transmit ]');
+  addMessage('system', '[ Hit DEBRIEF when done for your grade ]');
 }, 1000);
 
 </script>
