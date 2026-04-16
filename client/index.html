@@ -94,12 +94,48 @@
     #debrief-overlay h2 { color: #00ff88; margin-top: 20px; }
     #debrief-overlay strong { color: #6af; }
     #debrief-overlay .grade { font-size: 48px; color: #00ff88; text-align: center; margin: 20px 0; }
-    #debrief-close {
+    #debrief-close, #history-close {
       position: fixed; top: 20px; right: 20px; z-index: 101;
       background: #333; border: 1px solid #666; color: #fff;
       padding: 8px 20px; border-radius: 8px; font-family: inherit;
       font-size: 13px; cursor: pointer;
     }
+
+    /* History button */
+    #history-btn {
+      position: fixed; top: 92px; left: 20px; z-index: 20;
+      background: rgba(0,0,0,0.7); border: 1px solid #535;
+      color: #a6f; padding: 8px 16px; border-radius: 8px;
+      font-family: inherit; font-size: 11px; cursor: pointer;
+    }
+    #history-btn:hover { background: #a6f; color: #000; }
+
+    /* History overlay */
+    #history-overlay {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.95); overflow-y: auto;
+      padding: 40px; font-size: 14px; line-height: 1.7;
+    }
+    #history-overlay.visible { display: block; }
+    #history-overlay h2 { color: #a6f; margin-bottom: 16px; }
+    #history-overlay table { width: 100%; border-collapse: collapse; }
+    #history-overlay th { text-align: left; color: #666; padding: 8px; border-bottom: 1px solid #333; font-size: 11px; letter-spacing: 1px; }
+    #history-overlay td { padding: 10px 8px; border-bottom: 1px solid #1a1a1a; }
+    #history-overlay tr:hover td { background: rgba(100,50,255,0.05); }
+    .grade-badge { font-weight: bold; font-size: 18px; }
+    .grade-A { color: #00ff88; } .grade-B { color: #6af; } .grade-C { color: #fa0; }
+    .grade-D { color: #f66; } .grade-F { color: #f33; }
+    .history-view-btn {
+      background: #222; border: 1px solid #444; color: #aaa; padding: 4px 12px;
+      border-radius: 4px; font-family: inherit; font-size: 11px; cursor: pointer;
+    }
+    .history-view-btn:hover { color: #fff; border-color: #888; }
+
+    /* Session detail view inside history */
+    #session-detail { margin-top: 20px; }
+    #session-detail .msg-pilot { color: #88bbff; margin: 6px 0; }
+    #session-detail .msg-atc { color: #00ff88; margin: 6px 0; }
+    #session-detail .msg-debrief { color: #ccc; margin-top: 20px; padding: 16px; background: #111; border-radius: 8px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -118,10 +154,18 @@
 <button id="vr-btn" disabled>ENTER VR</button>
 <button id="reset-btn">NEW SESSION</button>
 <button id="debrief-btn">REQUEST DEBRIEF</button>
+<button id="history-btn">PAST SESSIONS</button>
 
 <div id="debrief-overlay">
   <button id="debrief-close">CLOSE</button>
   <div id="debrief-content"></div>
+</div>
+
+<div id="history-overlay">
+  <button id="history-close">CLOSE</button>
+  <h2>SESSION HISTORY</h2>
+  <div id="history-list"></div>
+  <div id="session-detail"></div>
 </div>
 
 <script type="importmap">
@@ -752,6 +796,83 @@ document.getElementById('debrief-btn').addEventListener('click', async () => {
 
 document.getElementById('debrief-close').addEventListener('click', () => {
   debriefOverlay.classList.remove('visible');
+});
+
+// ── History ──
+const historyOverlay = document.getElementById('history-overlay');
+const historyList = document.getElementById('history-list');
+const sessionDetail = document.getElementById('session-detail');
+
+document.getElementById('history-btn').addEventListener('click', async () => {
+  sessionDetail.innerHTML = '';
+  historyList.innerHTML = 'Loading...';
+  historyOverlay.classList.add('visible');
+
+  try {
+    const res = await fetch('/api/history');
+    const data = await res.json();
+
+    if (!data.sessions.length) {
+      historyList.innerHTML = '<p style="color:#666">No sessions yet. Complete a session and request a debrief to save it.</p>';
+      return;
+    }
+
+    let html = `<table><thead><tr>
+      <th>DATE</th><th>GRADE</th><th>TRANSMISSIONS</th><th>DEBRIEF</th><th></th>
+    </tr></thead><tbody>`;
+
+    data.sessions.forEach(s => {
+      const date = new Date(s.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const gradeClass = s.grade ? `grade-${s.grade[0]}` : '';
+      html += `<tr>
+        <td>${date}</td>
+        <td><span class="grade-badge ${gradeClass}">${s.grade || '—'}</span></td>
+        <td>${s.transmissions}</td>
+        <td>${s.hasDebrief ? 'Yes' : 'No'}</td>
+        <td><button class="history-view-btn" data-file="${s.filename}">VIEW</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    historyList.innerHTML = html;
+
+    // Click handlers for view buttons
+    historyList.querySelectorAll('.history-view-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const filename = btn.dataset.file;
+        sessionDetail.innerHTML = 'Loading session...';
+        try {
+          const r = await fetch(`/api/history/${filename}`);
+          const session = await r.json();
+
+          let detailHtml = '<h3 style="color:#00ff88;margin-bottom:12px">FULL TRANSCRIPT</h3>';
+          session.messages.forEach(m => {
+            if (m.content === '[DEBRIEF]') return;
+            if (m.role === 'user') {
+              detailHtml += `<div class="msg-pilot">YOU: ${m.content}</div>`;
+            } else {
+              const clean = m.content.replace(/^\[(RADIO|DEBRIEF)\]\s*/i, '');
+              if (m.content.startsWith('[DEBRIEF]')) {
+                detailHtml += `<div class="msg-debrief">${clean}</div>`;
+              } else {
+                detailHtml += `<div class="msg-atc">TWR: ${clean}</div>`;
+              }
+            }
+          });
+
+          sessionDetail.innerHTML = detailHtml;
+          sessionDetail.scrollIntoView({ behavior: 'smooth' });
+        } catch {
+          sessionDetail.innerHTML = '<p style="color:#f66">Failed to load session</p>';
+        }
+      });
+    });
+  } catch {
+    historyList.innerHTML = '<p style="color:#f66">Failed to load history</p>';
+  }
+});
+
+document.getElementById('history-close').addEventListener('click', () => {
+  historyOverlay.classList.remove('visible');
 });
 
 // ── Reset ──

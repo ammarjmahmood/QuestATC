@@ -1,6 +1,7 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +22,45 @@ const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFm
 
 // Per-session state
 const sessions = new Map();
+
+// Persistent history storage
+const HISTORY_DIR = join(__dirname, '..', 'data', 'sessions');
+mkdirSync(HISTORY_DIR, { recursive: true });
+
+function saveSession(sessionId, session) {
+  const record = {
+    id: sessionId,
+    startTime: session.startTime,
+    endTime: Date.now(),
+    messages: session.messages,
+    debrief: session.debrief || null,
+    grade: session.grade || null,
+  };
+  const filename = `${new Date(session.startTime).toISOString().replace(/[:.]/g, '-')}_${sessionId}.json`;
+  writeFileSync(join(HISTORY_DIR, filename), JSON.stringify(record, null, 2));
+  return filename;
+}
+
+function loadAllSessions() {
+  if (!existsSync(HISTORY_DIR)) return [];
+  const files = readdirSync(HISTORY_DIR).filter(f => f.endsWith('.json')).sort().reverse();
+  return files.map(f => {
+    try {
+      const data = JSON.parse(readFileSync(join(HISTORY_DIR, f), 'utf-8'));
+      // Return summary (not full messages — those can be fetched individually)
+      const pilotMsgs = data.messages.filter(m => m.role === 'user' && m.content !== '[DEBRIEF]');
+      return {
+        filename: f,
+        id: data.id,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        grade: data.grade,
+        transmissions: pilotMsgs.length,
+        hasDebrief: !!data.debrief,
+      };
+    } catch { return null; }
+  }).filter(Boolean);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // FAA ATC PHRASEOLOGY REFERENCE (AIM Chapter 4, FAA Order 7110.65)
@@ -347,7 +387,7 @@ app.post('/api/atc', async (req, res) => {
   }
 });
 
-// Request debrief/grade
+// Request debrief/grade — also saves the full session to disk
 app.post('/api/debrief', async (req, res) => {
   const { sessionId = 'default' } = req.body;
   const session = getSession(sessionId);
@@ -356,7 +396,6 @@ app.post('/api/debrief', async (req, res) => {
     return res.json({ reply: 'No session to debrief. Start a radio session first.', isDebrief: true });
   }
 
-  // Add debrief request to conversation
   session.messages.push({ role: 'user', content: '[DEBRIEF]' });
 
   try {
@@ -364,10 +403,42 @@ app.post('/api/debrief', async (req, res) => {
     session.messages.push({ role: 'assistant', content: debrief });
 
     const cleanReply = debrief.replace(/^\[DEBRIEF\]\s*/i, '');
-    res.json({ reply: cleanReply, isDebrief: true });
+
+    // Extract grade from debrief text
+    const gradeMatch = cleanReply.match(/GRADE:\s*([A-F][+-]?)/i);
+    session.debrief = cleanReply;
+    session.grade = gradeMatch ? gradeMatch[1] : null;
+
+    // Save to disk
+    const filename = saveSession(sessionId, session);
+    console.log(`Session saved: ${filename}`);
+
+    res.json({ reply: cleanReply, isDebrief: true, grade: session.grade });
   } catch (err) {
     console.error('Debrief error:', err.message);
     res.status(500).json({ error: 'Debrief generation failed' });
+  }
+});
+
+// ── History endpoints ──
+
+// List all past sessions (summaries)
+app.get('/api/history', (req, res) => {
+  const sessions = loadAllSessions();
+  res.json({ sessions });
+});
+
+// Get full session detail (transcript + debrief)
+app.get('/api/history/:filename', (req, res) => {
+  const filepath = join(HISTORY_DIR, req.params.filename);
+  if (!existsSync(filepath) || !req.params.filename.endsWith('.json')) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  try {
+    const data = JSON.parse(readFileSync(filepath, 'utf-8'));
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: 'Failed to read session' });
   }
 });
 
