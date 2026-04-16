@@ -95,8 +95,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
   }
 }
 </script>
@@ -105,6 +105,7 @@
 import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+import { SparkRenderer, SplatMesh } from 'https://sparkjs.dev/releases/spark/2.0.0/spark.module.js';
 
 // ── Scene setup ──
 const canvas = document.getElementById('scene');
@@ -120,6 +121,32 @@ scene.fog = new THREE.Fog(0x87ceeb, 500, 5000);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
 camera.position.set(0, 2.5, 0); // seated cockpit height
+
+// ── Spark Gaussian Splat Renderer ──
+const spark = new SparkRenderer({ renderer });
+scene.add(spark);
+
+// Try to load cockpit splat — falls back to placeholder geometry if missing
+let hasSplatCockpit = false;
+async function loadCockpitSplat() {
+  try {
+    // Check if splat file exists
+    const check = await fetch('/assets/cockpit.spz', { method: 'HEAD' });
+    if (!check.ok) {
+      console.log('No cockpit.spz found — using placeholder geometry');
+      return;
+    }
+    const splat = new SplatMesh({ url: '/assets/cockpit.spz' });
+    // Position the splat so the pilot seat is at camera origin
+    splat.position.set(0, 1.8, 0);
+    scene.add(splat);
+    hasSplatCockpit = true;
+    console.log('Gaussian splat cockpit loaded');
+  } catch (e) {
+    console.log('Splat load failed, using placeholder:', e.message);
+  }
+}
+loadCockpitSplat();
 
 // ── Lighting ──
 const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -195,9 +222,13 @@ conn.rotation.x = -Math.PI / 2;
 conn.position.set(30, 0.01, 100);
 scene.add(conn);
 
-// ── Simple cockpit frame (placeholder until gaussian splat) ──
+// ── Simple cockpit frame (placeholder until gaussian splat replaces it) ──
 const cockpitGroup = new THREE.Group();
 cockpitGroup.position.set(0, 1.8, 0);
+// Hide placeholder once splat loads
+loadCockpitSplat().then(() => {
+  if (hasSplatCockpit) cockpitGroup.visible = false;
+});
 
 // Dashboard
 const dashGeo = new THREE.BoxGeometry(3, 0.8, 0.3);
