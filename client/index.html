@@ -552,6 +552,74 @@ let radioMessages = []; // {type: 'atc'|'pilot'|'system', text: string}
 // Radio static audio
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+// ── Session Audio Recorder ──
+// Records everything: mic input (pilot) + ATC TTS + radio effects into one file
+const recorderDest = audioCtx.createMediaStreamDestination();
+let sessionRecorder = null;
+let recordedChunks = [];
+let micStream = null;
+let micSourceNode = null;
+
+async function startSessionRecording() {
+  // Stop any existing recording
+  stopSessionRecording();
+  recordedChunks = [];
+
+  // Get mic stream and route it to the recorder
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micSourceNode = audioCtx.createMediaStreamSource(micStream);
+    micSourceNode.connect(recorderDest);
+  } catch (e) {
+    console.warn('Mic access for recording failed:', e.message);
+  }
+
+  // Start MediaRecorder on the mixed destination
+  sessionRecorder = new MediaRecorder(recorderDest.stream, {
+    mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+  });
+  sessionRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+  sessionRecorder.start(1000); // capture in 1s chunks
+  console.log('Session recording started');
+}
+
+function stopSessionRecording() {
+  if (sessionRecorder && sessionRecorder.state !== 'inactive') {
+    sessionRecorder.stop();
+  }
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+  if (micSourceNode) {
+    micSourceNode.disconnect();
+    micSourceNode = null;
+  }
+}
+
+async function getSessionAudioBlob() {
+  return new Promise(resolve => {
+    if (!sessionRecorder || recordedChunks.length === 0) {
+      resolve(null);
+      return;
+    }
+    // If still recording, stop and wait for final data
+    if (sessionRecorder.state !== 'inactive') {
+      sessionRecorder.onstop = () => {
+        resolve(new Blob(recordedChunks, { type: 'audio/webm' }));
+      };
+      sessionRecorder.stop();
+    } else {
+      resolve(new Blob(recordedChunks, { type: 'audio/webm' }));
+    }
+  });
+}
+
+// Auto-start recording on first PTT
+let recordingStarted = false;
+
 function playRadioClick() {
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -559,7 +627,9 @@ function playRadioClick() {
   osc.frequency.value = 800;
   gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-  osc.connect(gain).connect(audioCtx.destination);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  gain.connect(recorderDest); // also record it
   osc.start();
   osc.stop(audioCtx.currentTime + 0.08);
 }
@@ -577,7 +647,9 @@ function playRadioStatic(duration = 0.3) {
   filter.type = 'bandpass';
   filter.frequency.value = 2000;
   filter.Q.value = 0.5;
-  source.connect(filter).connect(audioCtx.destination);
+  source.connect(filter);
+  filter.connect(audioCtx.destination);
+  filter.connect(recorderDest); // also record static
   source.start();
 }
 
@@ -651,6 +723,12 @@ function startPTT() {
   pttBtn.classList.add('active');
   playRadioClick();
   audioCtx.resume();
+
+  // Start session recording on first PTT press
+  if (!recordingStarted) {
+    recordingStarted = true;
+    startSessionRecording();
+  }
 
   statusLine.textContent = 'TRANSMITTING — speak now';
   if (recognition) {
@@ -753,7 +831,9 @@ async function speakATC(text) {
     }
     distortion.curve = curve;
 
-    source.connect(bandpass).connect(distortion).connect(audioCtx.destination);
+    source.connect(bandpass).connect(distortion);
+    distortion.connect(audioCtx.destination);
+    distortion.connect(recorderDest); // record ATC voice too
     audio.play();
   } catch (e) {
     // Silent fail — text display is primary
@@ -765,7 +845,12 @@ const debriefOverlay = document.getElementById('debrief-overlay');
 const debriefContent = document.getElementById('debrief-content');
 
 document.getElementById('debrief-btn').addEventListener('click', async () => {
-  statusLine.textContent = 'Generating debrief...';
+  statusLine.textContent = 'Generating debrief & saving recording...';
+
+  // Stop recording and get audio blob
+  const audioBlob = await getSessionAudioBlob();
+  recordingStarted = false;
+
   try {
     const res = await fetch('/api/debrief', {
       method: 'POST',
@@ -773,8 +858,18 @@ document.getElementById('debrief-btn').addEventListener('click', async () => {
       body: JSON.stringify({}),
     });
     const data = await res.json();
+
+    // Upload session audio if we have it
+    if (audioBlob && audioBlob.size > 0 && data.filename) {
+      const audioFilename = data.filename.replace('.json', '.webm');
+      fetch(`/api/upload-audio/${audioFilename}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'audio/webm' },
+        body: audioBlob,
+      }).catch(() => {});
+    }
+
     if (data.reply) {
-      // Simple markdown-ish rendering
       let html = data.reply
         .replace(/\*\*GRADE:\s*([A-F][+-]?)\*\*/g, '<div class="grade">$1</div>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -787,7 +882,7 @@ document.getElementById('debrief-btn').addEventListener('click', async () => {
         .replace(/\n/g, '<br>');
       debriefContent.innerHTML = html;
       debriefOverlay.classList.add('visible');
-      statusLine.textContent = 'Debrief ready';
+      statusLine.textContent = 'Debrief ready — recording saved';
     }
   } catch (err) {
     statusLine.textContent = 'Debrief failed — try again';
@@ -818,7 +913,7 @@ document.getElementById('history-btn').addEventListener('click', async () => {
     }
 
     let html = `<table><thead><tr>
-      <th>DATE</th><th>GRADE</th><th>TRANSMISSIONS</th><th>DEBRIEF</th><th></th>
+      <th>DATE</th><th>GRADE</th><th>TRANSMISSIONS</th><th>DEBRIEF</th><th>AUDIO</th><th></th>
     </tr></thead><tbody>`;
 
     data.sessions.forEach(s => {
@@ -829,6 +924,7 @@ document.getElementById('history-btn').addEventListener('click', async () => {
         <td><span class="grade-badge ${gradeClass}">${s.grade || '—'}</span></td>
         <td>${s.transmissions}</td>
         <td>${s.hasDebrief ? 'Yes' : 'No'}</td>
+        <td>${s.hasAudio ? '🔊' : '—'}</td>
         <td><button class="history-view-btn" data-file="${s.filename}">VIEW</button></td>
       </tr>`;
     });
@@ -844,7 +940,18 @@ document.getElementById('history-btn').addEventListener('click', async () => {
           const r = await fetch(`/api/history/${filename}`);
           const session = await r.json();
 
-          let detailHtml = '<h3 style="color:#00ff88;margin-bottom:12px">FULL TRANSCRIPT</h3>';
+          let detailHtml = '';
+
+          // Audio playback if available
+          if (session.hasAudio) {
+            const audioFile = filename.replace('.json', '.webm');
+            detailHtml += `<div style="margin-bottom:20px;padding:16px;background:#111;border-radius:8px;">
+              <div style="color:#a6f;margin-bottom:8px;font-size:12px;letter-spacing:1px;">SESSION RECORDING</div>
+              <audio controls style="width:100%" src="/api/audio/${audioFile}"></audio>
+            </div>`;
+          }
+
+          detailHtml += '<h3 style="color:#00ff88;margin-bottom:12px">FULL TRANSCRIPT</h3>';
           session.messages.forEach(m => {
             if (m.content === '[DEBRIEF]') return;
             if (m.role === 'user') {
@@ -877,6 +984,9 @@ document.getElementById('history-close').addEventListener('click', () => {
 
 // ── Reset ──
 document.getElementById('reset-btn').addEventListener('click', async () => {
+  stopSessionRecording();
+  recordingStarted = false;
+  recordedChunks = [];
   await fetch('/api/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
   transcript.innerHTML = '<p class="system">[ New session — contact tower when ready ]</p>';
   radioMessages = [];

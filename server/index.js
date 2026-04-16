@@ -49,6 +49,7 @@ function loadAllSessions() {
       const data = JSON.parse(readFileSync(join(HISTORY_DIR, f), 'utf-8'));
       // Return summary (not full messages — those can be fetched individually)
       const pilotMsgs = data.messages.filter(m => m.role === 'user' && m.content !== '[DEBRIEF]');
+      const audioFile = f.replace('.json', '.webm');
       return {
         filename: f,
         id: data.id,
@@ -57,6 +58,7 @@ function loadAllSessions() {
         grade: data.grade,
         transmissions: pilotMsgs.length,
         hasDebrief: !!data.debrief,
+        hasAudio: existsSync(join(HISTORY_DIR, audioFile)),
       };
     } catch { return null; }
   }).filter(Boolean);
@@ -413,7 +415,7 @@ app.post('/api/debrief', async (req, res) => {
     const filename = saveSession(sessionId, session);
     console.log(`Session saved: ${filename}`);
 
-    res.json({ reply: cleanReply, isDebrief: true, grade: session.grade });
+    res.json({ reply: cleanReply, isDebrief: true, grade: session.grade, filename });
   } catch (err) {
     console.error('Debrief error:', err.message);
     res.status(500).json({ error: 'Debrief generation failed' });
@@ -436,10 +438,48 @@ app.get('/api/history/:filename', (req, res) => {
   }
   try {
     const data = JSON.parse(readFileSync(filepath, 'utf-8'));
+    // Check if audio exists for this session
+    const audioPath = filepath.replace('.json', '.webm');
+    data.hasAudio = existsSync(audioPath);
     res.json(data);
   } catch {
     res.status(500).json({ error: 'Failed to read session' });
   }
+});
+
+// Upload session audio recording (receives raw webm blob)
+app.post('/api/upload-audio/:filename', express.raw({ type: 'audio/*', limit: '50mb' }), (req, res) => {
+  const filename = req.params.filename;
+  if (!filename.endsWith('.webm')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+  // Sanitize — only allow filenames that match our session pattern
+  if (!/^[\w\-]+\.webm$/.test(filename)) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+  const filepath = join(HISTORY_DIR, filename);
+  try {
+    writeFileSync(filepath, req.body);
+    console.log(`Audio saved: ${filename} (${(req.body.length / 1024).toFixed(0)} KB)`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Audio save error:', err.message);
+    res.status(500).json({ error: 'Failed to save audio' });
+  }
+});
+
+// Serve session audio files
+app.get('/api/audio/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!filename.endsWith('.webm')) {
+    return res.status(400).json({ error: 'Invalid audio file' });
+  }
+  const filepath = join(HISTORY_DIR, filename);
+  if (!existsSync(filepath)) {
+    return res.status(404).json({ error: 'Audio not found' });
+  }
+  res.set('Content-Type', 'audio/webm');
+  res.sendFile(filepath);
 });
 
 // ElevenLabs TTS endpoint
