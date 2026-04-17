@@ -2,6 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
+import { generateCockpit } from './generate-cockpit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -532,19 +533,39 @@ app.post('/api/reset', (req, res) => {
   res.json({ ok: true });
 });
 
+// Regenerate cockpit splat (deletes existing and re-generates)
+app.post('/api/regenerate-cockpit', async (req, res) => {
+  const spzPath = join(__dirname, '..', 'client', 'assets', 'cockpit.spz');
+  if (existsSync(spzPath)) {
+    const { unlinkSync } = await import('fs');
+    unlinkSync(spzPath);
+    console.log('Deleted existing cockpit.spz for regeneration');
+  }
+  res.json({ status: 'regenerating' });
+  generateCockpit(); // runs in background
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  ATC Sim running → http://localhost:${PORT}`);
-  import('os').then(os => {
-    const nets = os.networkInterfaces();
-    for (const name of Object.keys(nets)) {
-      for (const net of nets[name]) {
-        if (net.family === 'IPv4' && !net.internal) {
-          console.log(`  Quest access   → http://${net.address}:${PORT}`);
-        }
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log('\n  ╔══════════════════════════════════════╗');
+  console.log('  ║       VRPilotATC — Radio Trainer     ║');
+  console.log('  ╚══════════════════════════════════════╝\n');
+  console.log(`  Server        → http://localhost:${PORT}`);
+
+  const os = await import('os');
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        console.log(`  Quest access  → http://${net.address}:${PORT}`);
       }
     }
-    console.log(`\n  Azure OpenAI:   ${AZURE_API_KEY ? 'configured' : 'NOT SET (set AZURE_OPENAI_* vars)'}`);
-    console.log(`  ElevenLabs TTS: ${ELEVENLABS_API_KEY ? 'enabled' : 'DISABLED (set ELEVENLABS_API_KEY)'}\n`);
-  });
+  }
+
+  console.log(`\n  Azure OpenAI:   ${AZURE_API_KEY ? 'configured' : 'NOT SET'}`);
+  console.log(`  ElevenLabs TTS: ${ELEVENLABS_API_KEY ? 'enabled' : 'DISABLED'}`);
+  console.log(`  World Labs:     ${process.env.WORLDLABS_API_KEY ? 'configured' : 'NOT SET'}\n`);
+
+  // Generate cockpit gaussian splat on first run
+  await generateCockpit();
 });
