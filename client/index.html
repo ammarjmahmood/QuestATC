@@ -136,9 +136,166 @@
     #session-detail .msg-pilot { color: #88bbff; margin: 6px 0; }
     #session-detail .msg-atc { color: #00ff88; margin: 6px 0; }
     #session-detail .msg-debrief { color: #ccc; margin-top: 20px; padding: 16px; background: #111; border-radius: 8px; white-space: pre-wrap; }
+
+    /* Welcome / Briefing screen */
+    #welcome {
+      position: fixed; inset: 0; z-index: 200;
+      background: linear-gradient(160deg, #020804 0%, #050a06 40%, #080d0a 100%);
+      display: flex; align-items: center; justify-content: center;
+      overflow-y: auto;
+    }
+    #welcome.hidden {
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    #welcome-inner {
+      max-width: 620px; padding: 40px 32px;
+      text-align: center;
+    }
+    #welcome h1 {
+      font-size: 32px; color: #00ff88; margin-bottom: 4px;
+      letter-spacing: 4px;
+      text-shadow: 0 0 40px rgba(0, 255, 136, 0.15);
+    }
+    #welcome .subtitle {
+      font-size: 11px; color: #447744; margin-bottom: 32px;
+      letter-spacing: 3px;
+    }
+    #welcome .steps {
+      text-align: left; margin: 0 auto 28px; max-width: 500px;
+    }
+    #welcome .step {
+      display: flex; gap: 14px; margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    #welcome .step-num {
+      flex-shrink: 0; width: 32px; height: 32px;
+      background: rgba(0,255,136,0.06); border: 1px solid rgba(0,255,136,0.2);
+      border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; color: #00ff88; font-size: 14px;
+      font-weight: bold;
+    }
+    #welcome .step-text {
+      font-size: 13px; color: #aac; line-height: 1.5;
+    }
+    #welcome .step-text strong { color: #00ff88; }
+    #welcome .step-text .dim { color: #556; font-size: 11px; }
+
+    #welcome .controls-box {
+      background: rgba(0,255,136,0.02); border: 1px solid rgba(0,255,136,0.1);
+      border-radius: 10px; padding: 16px 20px;
+      margin-bottom: 28px; text-align: left;
+    }
+    #welcome .controls-box h3 {
+      color: #447744; font-size: 11px; letter-spacing: 3px;
+      margin-bottom: 10px;
+    }
+    #welcome .control-row {
+      display: flex; justify-content: space-between;
+      margin-bottom: 6px; font-size: 12px;
+    }
+    #welcome .control-key { color: #6af; }
+    #welcome .control-action { color: #888; }
+
+    #welcome .tip {
+      font-size: 11px; color: #556; margin-bottom: 24px;
+      line-height: 1.6; max-width: 460px; margin-left: auto;
+      margin-right: auto;
+    }
+
+    #start-btn {
+      background: #00ff88; color: #020804; border: none;
+      padding: 16px 56px; font-family: inherit; font-size: 15px;
+      font-weight: bold; letter-spacing: 3px; border-radius: 8px;
+      cursor: pointer; transition: all 0.25s;
+      box-shadow: 0 0 30px rgba(0,255,136,0.15);
+    }
+    #start-btn:hover {
+      background: #33ffaa; transform: scale(1.03);
+      box-shadow: 0 0 50px rgba(0,255,136,0.25);
+    }
+
+    #welcome .past-link {
+      display: block; margin-top: 16px; font-size: 11px;
+      color: #a6f; cursor: pointer; text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+
+<div id="welcome">
+  <div id="welcome-inner">
+    <h1>VRPilotATC</h1>
+    <div class="subtitle">ATC RADIO TRAINER FOR POWER &amp; GLIDER PILOTS</div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <strong>Listen to ATIS</strong><br>
+          Request the weather broadcast. Note the information letter (Alpha, Bravo, etc), wind, altimeter setting, and active runway.
+          <div class="dim">Example: "Boston Approach, request ATIS"</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <strong>Contact Clearance Delivery</strong><br>
+          Get your VFR or IFR clearance. You'll receive a squawk code, departure frequency, and altitude. Read it all back.
+          <div class="dim">Example: "Boston Clearance, Cessna one-seven-two-Sierra-Papa, student pilot, at the ramp with information Alpha, request VFR to Providence"</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <strong>Contact Ground Control</strong><br>
+          Request taxi to the active runway. Ground will give you a taxiway route and any hold short instructions. Read back ALL hold short instructions.
+          <div class="dim">Example: "Boston Ground, Cessna seven-two-Sierra-Papa, ready to taxi with information Alpha"</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          <strong>Contact Tower</strong><br>
+          When you reach the hold short line, call Tower for takeoff clearance. Read back the clearance and runway number.
+          <div class="dim">Example: "Boston Tower, Cessna seven-two-Sierra-Papa, holding short runway two-two-left, ready for departure"</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text">
+          <strong>Request Debrief</strong><br>
+          When you're done, hit the DEBRIEF button. The AI grades your phraseology, readbacks, and safety — with specific corrections and tips.
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-box">
+      <h3>CONTROLS</h3>
+      <div class="control-row">
+        <span class="control-key">SPACEBAR (desktop)</span>
+        <span class="control-action">Hold to transmit (push-to-talk)</span>
+      </div>
+      <div class="control-row">
+        <span class="control-key">RIGHT TRIGGER (Quest)</span>
+        <span class="control-action">Hold to transmit (push-to-talk)</span>
+      </div>
+      <div class="control-row">
+        <span class="control-key">LEFT SQUEEZE (Quest)</span>
+        <span class="control-action">Alternate PTT</span>
+      </div>
+    </div>
+
+    <div class="tip">
+      Speak clearly with proper radio phraseology. Use the NATO phonetic alphabet for letters.
+      Say numbers digit-by-digit. Always end readbacks with your callsign.
+      The AI ATC will correct safety-critical errors in real time and track everything else for your debrief.
+    </div>
+
+    <button id="start-btn">BEGIN SESSION</button>
+    <span class="past-link" id="welcome-history">View past sessions</span>
+  </div>
+</div>
 
 <canvas id="scene"></canvas>
 
@@ -1007,16 +1164,39 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Initial instructions
-setTimeout(() => {
-  addMessage('system', '[ ATC Radio Trainer — Pre-Departure Flow ]');
-  addMessage('system', '[ Step 1: Listen to ATIS (request weather) ]');
-  addMessage('system', '[ Step 2: Contact Clearance Delivery ]');
-  addMessage('system', '[ Step 3: Contact Ground for taxi ]');
-  addMessage('system', '[ Step 4: Contact Tower at hold short line ]');
+// ── Welcome screen ──
+const welcomeEl = document.getElementById('welcome');
+const radioPanel = document.getElementById('radio-panel');
+const vrBtn = document.getElementById('vr-btn');
+const resetBtn = document.getElementById('reset-btn');
+const debriefBtnEl = document.getElementById('debrief-btn');
+const historyBtnEl = document.getElementById('history-btn');
+
+// Hide UI until session starts
+radioPanel.style.display = 'none';
+vrBtn.style.display = 'none';
+resetBtn.style.display = 'none';
+debriefBtnEl.style.display = 'none';
+historyBtnEl.style.display = 'none';
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  welcomeEl.classList.add('hidden');
+  radioPanel.style.display = '';
+  vrBtn.style.display = '';
+  resetBtn.style.display = '';
+  debriefBtnEl.style.display = '';
+  historyBtnEl.style.display = '';
+  audioCtx.resume();
+
+  // Initial radio messages
+  addMessage('system', '[ Session active — you are at the ramp, engine running ]');
+  addMessage('system', '[ Step 1: Request ATIS / weather ]');
   addMessage('system', '[ Hold SPACE or Quest trigger to transmit ]');
-  addMessage('system', '[ Hit DEBRIEF when done for your grade ]');
-}, 1000);
+});
+
+document.getElementById('welcome-history').addEventListener('click', () => {
+  document.getElementById('history-btn').click();
+});
 
 </script>
 </body>
