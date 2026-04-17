@@ -336,23 +336,32 @@ function getSession(sessionId) {
 }
 
 async function chatWithAzure(messages, maxTokens = 400) {
-  const url = `${AZURE_ENDPOINT}/openai/deployments/${AZURE_DEPLOYMENT}/chat/completions?api-version=${AZURE_API_VERSION}`;
+  // Try the new v1 API path first, fall back to legacy deployments path
+  const v1Url = `${AZURE_ENDPOINT}/openai/v1/chat/completions`;
+  const legacyUrl = `${AZURE_ENDPOINT}/openai/deployments/${AZURE_DEPLOYMENT}/chat/completions?api-version=${AZURE_API_VERSION}`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'api-key': AZURE_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: ATC_SYSTEM_PROMPT },
-        ...messages,
-      ],
-      max_tokens: maxTokens,
-      temperature: 0.7,
-    }),
+  const body = JSON.stringify({
+    model: AZURE_DEPLOYMENT,
+    messages: [
+      { role: 'system', content: ATC_SYSTEM_PROMPT },
+      ...messages,
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.7,
   });
+
+  const headers = {
+    'api-key': AZURE_API_KEY,
+    'Content-Type': 'application/json',
+  };
+
+  // Try v1 path
+  let res = await fetch(v1Url, { method: 'POST', headers, body });
+
+  // Fall back to legacy path if v1 fails
+  if (!res.ok && res.status === 404) {
+    res = await fetch(legacyUrl, { method: 'POST', headers, body });
+  }
 
   if (!res.ok) {
     const err = await res.text();
