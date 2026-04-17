@@ -81,19 +81,38 @@ async function generateCockpit() {
       }
 
       const pollData = await pollRes.json();
-      const status = pollData.metadata?.progress?.status || 'UNKNOWN';
+
+      // World Labs API: status is at top-level done/error, world_id in metadata
+      const worldId = pollData.metadata?.world_id;
+      const hasError = pollData.error;
+      const isDone = pollData.done;
 
       if (i % 6 === 0) { // Log every 30 seconds
-        console.log(`  Status: ${status} (${(i * 5)}s elapsed)`);
+        const status = isDone ? 'DONE' : hasError ? 'ERROR' : 'GENERATING';
+        console.log(`  Status: ${status} (${(i * 5)}s elapsed)${worldId ? ` [world: ${worldId}]` : ''}`);
       }
 
-      if (pollData.done) {
-        if (status === 'SUCCEEDED') {
+      if (hasError) {
+        throw new Error(`Generation failed: ${JSON.stringify(pollData.error)}`);
+      }
+
+      if (isDone) {
+        // Response may be in pollData.response, or we need to fetch the world directly
+        if (pollData.response) {
           result = pollData.response;
-          break;
-        } else {
-          throw new Error(`Generation failed with status: ${status}`);
+        } else if (worldId) {
+          // Fetch world details to get asset URLs
+          console.log(`  Generation done, fetching world assets...`);
+          const worldRes = await fetch(`${WORLDLABS_BASE}/marble/v1/worlds/${worldId}`, {
+            headers: { 'WLT-Api-Key': WORLDLABS_API_KEY },
+          });
+          if (worldRes.ok) {
+            result = await worldRes.json();
+          } else {
+            throw new Error(`Failed to fetch world ${worldId}: ${worldRes.status}`);
+          }
         }
+        break;
       }
     }
 
@@ -102,18 +121,24 @@ async function generateCockpit() {
     }
 
     console.log(`  Generation complete!`);
-    console.log(`  World ID: ${result.id}`);
+    const worldId = result.id || result.world_id;
+    console.log(`  World ID: ${worldId}`);
     if (result.world_marble_url) {
       console.log(`  View online: ${result.world_marble_url}`);
     }
 
     // Step 3: Download the .spz file (use full_res for best quality, fall back to 500k)
-    const spzUrls = result.assets?.splats?.spz_urls;
+    // Handle different response shapes from the API
+    const spzUrls = result.assets?.splats?.spz_urls
+      || result.splats?.spz_urls;
+
     if (!spzUrls) {
-      throw new Error('No .spz URLs in response');
+      console.log('  Response structure:', JSON.stringify(Object.keys(result), null, 2));
+      console.log('  Assets:', JSON.stringify(result.assets || 'none'));
+      throw new Error('No .spz URLs in response — check world at marble.worldlabs.ai');
     }
 
-    const downloadUrl = spzUrls.full_res || spzUrls['500k'] || spzUrls['100k'];
+    const downloadUrl = spzUrls.full_res || spzUrls['full_res'] || spzUrls['500k'] || spzUrls['100k'] || Object.values(spzUrls)[0];
     console.log(`  Downloading cockpit.spz...`);
 
     const dlRes = await fetch(downloadUrl);
