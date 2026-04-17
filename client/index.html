@@ -338,6 +338,7 @@
 import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SparkRenderer, SplatMesh } from 'https://sparkjs.dev/releases/spark/2.0.0/spark.module.js';
 
 // ── Scene setup ──
@@ -354,6 +355,25 @@ scene.fog = new THREE.Fog(0x87ceeb, 500, 5000);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
 camera.position.set(0, 2.5, 0); // seated cockpit height
+camera.lookAt(0, 2.5, -1); // look forward through windshield
+
+// ── Desktop mouse controls (look around cockpit) ──
+// Disabled during VR — only for desktop/laptop use
+const orbitControls = new OrbitControls(camera, canvas);
+orbitControls.target.set(0, 2.5, -1); // look at instrument panel area
+orbitControls.enableDamping = true;
+orbitControls.dampingFactor = 0.08;
+orbitControls.rotateSpeed = 0.4;
+orbitControls.enableZoom = false; // don't zoom, you're seated
+orbitControls.enablePan = false; // don't pan, you're seated
+orbitControls.minPolarAngle = Math.PI * 0.15; // limit looking too far up
+orbitControls.maxPolarAngle = Math.PI * 0.75; // limit looking too far down
+orbitControls.minDistance = 0;
+orbitControls.maxDistance = 0;
+
+// Disable orbit controls when in VR
+renderer.xr.addEventListener('sessionstart', () => { orbitControls.enabled = false; });
+renderer.xr.addEventListener('sessionend', () => { orbitControls.enabled = true; });
 
 // ── Spark Gaussian Splat Renderer ──
 const spark = new SparkRenderer({ renderer });
@@ -363,18 +383,32 @@ scene.add(spark);
 let hasSplatCockpit = false;
 async function loadCockpitSplat() {
   try {
-    // Check if splat file exists
     const check = await fetch('/assets/cockpit.spz', { method: 'HEAD' });
     if (!check.ok) {
       console.log('No cockpit.spz found — using placeholder geometry');
       return;
     }
     const splat = new SplatMesh({ url: '/assets/cockpit.spz' });
-    // Position the splat so the pilot seat is at camera origin
-    splat.position.set(0, 1.8, 0);
+
+    // World Labs generates scenes centered at origin looking down -Z.
+    // We need to position/orient the splat so the pilot seat aligns with our camera.
+    // The camera is at (0, 2.5, 0) looking forward (-Z).
+    // Place the splat at origin — the generation prompt was first-person from pilot seat,
+    // so the scene center should roughly be the pilot's head position.
+    splat.position.set(0, 0, 0);
+
+    // World Labs .spz uses RUB coordinate system (same as Three.js/OpenGL)
+    // so no rotation needed by default. If it looks wrong, we can adjust:
+    // splat.rotation.y = Math.PI; // rotate 180 if facing backwards
+
     scene.add(splat);
     hasSplatCockpit = true;
     console.log('Gaussian splat cockpit loaded');
+
+    // Move camera to splat center for proper viewing
+    camera.position.set(0, 0, 0);
+    orbitControls.target.set(0, 0, -1);
+    orbitControls.update();
   } catch (e) {
     console.log('Splat load failed, using placeholder:', e.message);
   }
@@ -1155,6 +1189,9 @@ document.getElementById('reset-btn').addEventListener('click', async () => {
 vrRadioPanel = createVRRadioPanel();
 
 renderer.setAnimationLoop(() => {
+  if (!renderer.xr.isPresenting) {
+    orbitControls.update();
+  }
   renderer.render(scene, camera);
 });
 
