@@ -203,104 +203,262 @@
       margin-right: auto;
     }
 
-    #start-btn {
-      background: #00ff88; color: #020804; border: none;
-      padding: 16px 56px; font-family: inherit; font-size: 15px;
-      font-weight: bold; letter-spacing: 3px; border-radius: 8px;
-      cursor: pointer; transition: all 0.25s;
-      box-shadow: 0 0 30px rgba(0,255,136,0.15);
-    }
-    #start-btn:hover {
-      background: #33ffaa; transform: scale(1.03);
-      box-shadow: 0 0 50px rgba(0,255,136,0.25);
-    }
-
     #welcome .past-link {
       display: block; margin-top: 16px; font-size: 11px;
       color: #a6f; cursor: pointer; text-decoration: underline;
     }
+
+    /* ── Flow steps ── */
+    .flow-step { display: none; }
+    .flow-step.active { display: block; }
+    .flow-btn {
+      padding: 14px 48px; font-family: inherit; font-size: 14px;
+      font-weight: bold; letter-spacing: 2px; border-radius: 8px;
+      cursor: pointer; transition: all 0.2s; border: none; margin: 6px;
+    }
+    .flow-btn.primary {
+      background: #00ff88; color: #020804;
+      box-shadow: 0 0 25px rgba(0,255,136,0.12);
+    }
+    .flow-btn.primary:hover { background: #33ffaa; transform: scale(1.02); }
+    .flow-btn.secondary {
+      background: transparent; color: #666; border: 1px solid #333;
+    }
+    .flow-btn.secondary:hover { color: #aaa; border-color: #555; }
+
+    /* Scenario grid */
+    .scenario-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      max-width: 560px; margin: 20px auto; text-align: left;
+      max-height: 55vh; overflow-y: auto; padding-right: 6px;
+      scrollbar-width: thin; scrollbar-color: #1a3a1a transparent;
+    }
+    .sc-category-label {
+      grid-column: 1 / -1; color: #447744; font-size: 10px;
+      letter-spacing: 3px; padding: 10px 0 4px; border-bottom: 1px solid #1a2a1a;
+      margin-top: 4px;
+    }
+    .sc-category-label:first-child { margin-top: 0; }
+    .scenario-card {
+      background: rgba(0,255,136,0.02); border: 1px solid #1a2a1a;
+      border-radius: 10px; padding: 14px 16px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .scenario-card:hover { border-color: #00ff88; background: rgba(0,255,136,0.05); }
+    .scenario-card .sc-name { color: #00ff88; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+    .scenario-card .sc-diff {
+      font-size: 9px; letter-spacing: 2px; margin-bottom: 6px; padding: 2px 8px;
+      border-radius: 3px; display: inline-block;
+    }
+    .sc-diff-Beginner { color: #4a8; background: rgba(68,170,136,0.1); }
+    .sc-diff-Intermediate { color: #fa0; background: rgba(255,170,0,0.08); }
+    .sc-diff-Advanced { color: #f66; background: rgba(255,100,100,0.08); }
+    .scenario-card .sc-desc { color: #778; font-size: 11px; line-height: 1.4; }
+
+    /* Airport grid */
+    .airport-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      max-width: 540px; margin: 0 auto 20px; text-align: left;
+    }
+    .airport-card {
+      background: rgba(100,150,255,0.02); border: 1px solid #1a1a2a;
+      border-radius: 8px; padding: 10px 12px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .airport-card:hover { border-color: #6af; background: rgba(100,150,255,0.05); }
+    .airport-card .ap-icao { color: #6af; font-size: 13px; font-weight: bold; }
+    .airport-card .ap-name { color: #667; font-size: 10px; line-height: 1.3; }
+
+    /* Loading spinner */
+    .loading-spinner {
+      width: 40px; height: 40px; margin: 24px auto;
+      border: 3px solid #1a2a1a; border-top: 3px solid #00ff88;
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Briefing card */
+    .briefing-card {
+      text-align: left; max-width: 540px; margin: 16px auto;
+      background: rgba(0,255,136,0.02); border: 1px solid #1a2a1a;
+      border-radius: 12px; overflow: hidden;
+    }
+    .briefing-header {
+      background: rgba(0,255,136,0.05); padding: 16px 20px;
+      border-bottom: 1px solid #1a2a1a;
+    }
+    .briefing-header .bh-title { color: #00ff88; font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+    .briefing-header .bh-row { color: #889; font-size: 11px; margin-bottom: 3px; }
+    .briefing-header .bh-row strong { color: #aac; }
+    .briefing-body {
+      padding: 16px 20px; color: #99a; font-size: 12px; line-height: 1.65;
+      max-height: 240px; overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: #1a3a1a transparent;
+    }
+    .briefing-frequencies {
+      padding: 14px 20px; background: rgba(0,100,255,0.03);
+      border-top: 1px solid #1a2a1a;
+    }
+    .briefing-frequencies .bf-title { color: #6af; font-size: 10px; letter-spacing: 2px; margin-bottom: 8px; }
+    .bf-freq-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+    .bf-freq-row .bf-label { color: #667; }
+    .bf-freq-row .bf-val { color: #6af; font-weight: bold; }
+
+    /* Frequency quiz */
+    .quiz-container { max-width: 480px; margin: 16px auto; text-align: left; }
+    .quiz-step {
+      margin-bottom: 16px; padding: 14px 16px;
+      background: rgba(0,0,0,0.3); border: 1px solid #1a1a2a;
+      border-radius: 8px;
+    }
+    .quiz-step .qs-label { color: #aab; font-size: 12px; margin-bottom: 8px; }
+    .quiz-step .qs-options { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .quiz-opt {
+      background: #111; border: 1px solid #2a2a3a; color: #88a;
+      padding: 8px; border-radius: 6px; font-family: inherit; font-size: 12px;
+      cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .quiz-opt:hover { border-color: #6af; color: #aac; }
+    .quiz-opt.selected { border-color: #6af; background: rgba(100,170,255,0.08); color: #6af; }
+    .quiz-opt.correct { border-color: #00ff88; background: rgba(0,255,136,0.08); color: #00ff88; }
+    .quiz-opt.wrong { border-color: #f44; background: rgba(255,68,68,0.08); color: #f44; }
+
+    /* ── Phase tracker ── */
+    .phase-tracker {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      margin-bottom: 8px; font-size: 10px; letter-spacing: 1px;
+    }
+    .phase { color: #333; padding: 3px 8px; border-radius: 4px; transition: all 0.3s; }
+    .phase.active-phase { color: #00ff88; background: rgba(0,255,136,0.08); font-weight: bold; }
+    .phase.done-phase { color: #447744; }
+    .phase-arrow { color: #222; font-size: 8px; }
+
+    /* ── Frequency selector ── */
+    .freq-selector {
+      display: flex; gap: 4px; justify-content: center; margin-bottom: 6px;
+    }
+    .freq-btn {
+      background: #0a0f0a; border: 1px solid #1a2a1a; color: #445;
+      padding: 4px 8px; border-radius: 5px; font-family: inherit;
+      font-size: 10px; cursor: pointer; transition: all 0.15s;
+      text-align: center; min-width: 52px;
+    }
+    .freq-btn:hover { border-color: #336; color: #668; }
+    .freq-btn.active { border-color: #00ff88; color: #00ff88; background: rgba(0,255,136,0.05); }
+    .freq-btn .freq-val { display: block; font-size: 9px; color: #334; margin-top: 1px; }
+    .freq-btn.active .freq-val { color: #447744; }
+
+    /* Session timer */
+    .session-timer {
+      font-size: 10px; color: #333; text-align: right;
+      position: absolute; top: 8px; right: 16px; letter-spacing: 2px;
+    }
+    #radio-panel { position: relative; }
+
   </style>
 </head>
 <body>
 
+<!-- ═══ SCENARIO FLOW ═══ -->
 <div id="welcome">
   <div id="welcome-inner">
-    <h1>VRPilotATC</h1>
-    <div class="subtitle">ATC RADIO TRAINER FOR POWER &amp; GLIDER PILOTS</div>
+    <!-- STEP 0: Title -->
+    <div id="flow-title" class="flow-step active">
+      <h1>VRPilotATC</h1>
+      <div class="subtitle">ATC RADIO COMMUNICATION TRAINER</div>
+      <div class="subtitle" style="font-size:10px;margin-top:4px;color:#447744">FOR POWER &amp; GLIDER PILOTS</div>
 
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-text">
-          <strong>Listen to ATIS</strong><br>
-          Request the weather broadcast. Note the information letter (Alpha, Bravo, etc), wind, altimeter setting, and active runway.
-          <div class="dim">Example: "Boston Approach, request ATIS"</div>
-        </div>
+      <div class="controls-box" style="margin-top:28px">
+        <h3>CONTROLS</h3>
+        <div class="control-row"><span class="control-key">SPACEBAR (desktop)</span><span class="control-action">Hold to transmit (PTT)</span></div>
+        <div class="control-row"><span class="control-key">RIGHT TRIGGER (Quest)</span><span class="control-action">Hold to transmit (PTT)</span></div>
+        <div class="control-row"><span class="control-key">LEFT SQUEEZE (Quest)</span><span class="control-action">Alternate PTT</span></div>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-text">
-          <strong>Contact Clearance Delivery</strong><br>
-          Get your VFR or IFR clearance. You'll receive a squawk code, departure frequency, and altitude. Read it all back.
-          <div class="dim">Example: "Boston Clearance, Cessna one-seven-two-Sierra-Papa, student pilot, at the ramp with information Alpha, request VFR to Providence"</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-text">
-          <strong>Contact Ground Control</strong><br>
-          Request taxi to the active runway. Ground will give you a taxiway route and any hold short instructions. Read back ALL hold short instructions.
-          <div class="dim">Example: "Boston Ground, Cessna seven-two-Sierra-Papa, ready to taxi with information Alpha"</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-text">
-          <strong>Contact Tower</strong><br>
-          When you reach the hold short line, call Tower for takeoff clearance. Read back the clearance and runway number.
-          <div class="dim">Example: "Boston Tower, Cessna seven-two-Sierra-Papa, holding short runway two-two-left, ready for departure"</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">5</div>
-        <div class="step-text">
-          <strong>Request Debrief</strong><br>
-          When you're done, hit the DEBRIEF button. The AI grades your phraseology, readbacks, and safety — with specific corrections and tips.
-        </div>
-      </div>
+
+      <button id="flow-start-btn" class="flow-btn primary">SELECT SCENARIO</button>
+      <span class="past-link" id="welcome-history">View past sessions</span>
     </div>
 
-    <div class="controls-box">
-      <h3>CONTROLS</h3>
-      <div class="control-row">
-        <span class="control-key">SPACEBAR (desktop)</span>
-        <span class="control-action">Hold to transmit (push-to-talk)</span>
-      </div>
-      <div class="control-row">
-        <span class="control-key">RIGHT TRIGGER (Quest)</span>
-        <span class="control-action">Hold to transmit (push-to-talk)</span>
-      </div>
-      <div class="control-row">
-        <span class="control-key">LEFT SQUEEZE (Quest)</span>
-        <span class="control-action">Alternate PTT</span>
-      </div>
+    <!-- STEP 1: Scenario type -->
+    <div id="flow-scenario" class="flow-step">
+      <h2>SELECT SCENARIO TYPE</h2>
+      <div class="subtitle" style="font-size:10px">Choose what you want to practice</div>
+      <div id="scenario-grid" class="scenario-grid"></div>
+      <button id="flow-back-1" class="flow-btn secondary">BACK</button>
     </div>
 
-    <div class="tip">
-      Speak clearly with proper radio phraseology. Use the NATO phonetic alphabet for letters.
-      Say numbers digit-by-digit. Always end readbacks with your callsign.
-      The AI ATC will correct safety-critical errors in real time and track everything else for your debrief.
+    <!-- STEP 2: Airport selection -->
+    <div id="flow-airport" class="flow-step">
+      <h2>SELECT AIRPORT</h2>
+      <div class="subtitle" style="font-size:10px">Pick a real airport or enter a custom ICAO code</div>
+      <div id="airport-custom" style="margin-bottom:16px">
+        <input type="text" id="custom-icao" placeholder="Enter ICAO (e.g. CYOO)" maxlength="4" style="
+          background:#111;border:1px solid #334;color:#00ff88;padding:10px 16px;font-family:inherit;font-size:14px;
+          border-radius:6px;width:160px;text-transform:uppercase;text-align:center;letter-spacing:3px;
+        "/>
+        <button id="custom-icao-go" class="flow-btn secondary" style="padding:10px 20px;margin-left:8px">GO</button>
+      </div>
+      <div id="airport-grid" class="airport-grid"></div>
+      <button id="flow-back-2" class="flow-btn secondary">BACK</button>
     </div>
 
-    <button id="start-btn">BEGIN SESSION</button>
-    <span class="past-link" id="welcome-history">View past sessions</span>
+    <!-- STEP 3: Loading / generating -->
+    <div id="flow-loading" class="flow-step">
+      <h2>GENERATING SCENARIO</h2>
+      <div id="loading-detail" class="subtitle" style="font-size:11px;color:#447744">
+        Creating unique training scenario with real frequencies...
+      </div>
+      <div class="loading-spinner"></div>
+      <div id="loading-metar" style="font-size:10px;color:#556;margin-top:12px"></div>
+    </div>
+
+    <!-- STEP 4: Flight briefing -->
+    <div id="flow-briefing" class="flow-step">
+      <h2>FLIGHT BRIEFING</h2>
+      <div id="briefing-card" class="briefing-card">
+        <div id="briefing-header" class="briefing-header"></div>
+        <div id="briefing-body" class="briefing-body"></div>
+        <div id="briefing-frequencies" class="briefing-frequencies"></div>
+      </div>
+      <button id="flow-to-quiz" class="flow-btn primary">FREQUENCY CHECK</button>
+      <button id="flow-back-4" class="flow-btn secondary">CHANGE SCENARIO</button>
+    </div>
+
+    <!-- STEP 5: Frequency quiz -->
+    <div id="flow-quiz" class="flow-step">
+      <h2>FREQUENCY CHECK</h2>
+      <div class="subtitle" style="font-size:10px">Select the correct frequency for each step</div>
+      <div id="quiz-container" class="quiz-container"></div>
+      <div id="quiz-result" style="display:none;margin:16px 0;font-size:14px"></div>
+      <button id="flow-begin" class="flow-btn primary" style="display:none">BEGIN SESSION</button>
+      <button id="quiz-retry" class="flow-btn secondary" style="display:none">RETRY QUIZ</button>
+    </div>
   </div>
 </div>
 
 <canvas id="scene"></canvas>
 
 <div id="radio-panel">
-  <div class="freq">COM1 &nbsp; 124.900 &nbsp; | &nbsp; ATIS 127.875</div>
+  <div id="phase-tracker" class="phase-tracker">
+    <span class="phase" data-phase="atis">ATIS</span>
+    <span class="phase-arrow">&gt;</span>
+    <span class="phase" data-phase="clearance">CLR</span>
+    <span class="phase-arrow">&gt;</span>
+    <span class="phase" data-phase="ground">GND</span>
+    <span class="phase-arrow">&gt;</span>
+    <span class="phase" data-phase="tower">TWR</span>
+    <span class="phase-arrow">&gt;</span>
+    <span class="phase" data-phase="departure">DEP</span>
+  </div>
+  <div id="freq-selector" class="freq-selector">
+    <button class="freq-btn" data-freq="atis" title="ATIS">ATIS<span class="freq-val"></span></button>
+    <button class="freq-btn" data-freq="clearance" title="Clearance Delivery">CLR<span class="freq-val"></span></button>
+    <button class="freq-btn active" data-freq="ground" title="Ground Control">GND<span class="freq-val"></span></button>
+    <button class="freq-btn" data-freq="tower" title="Tower">TWR<span class="freq-val"></span></button>
+    <button class="freq-btn" data-freq="departure" title="Departure">DEP<span class="freq-val"></span></button>
+  </div>
+  <div class="freq" id="active-freq-display">COM1 &nbsp; --- &nbsp; | &nbsp; Tune a frequency above</div>
+  <div id="session-timer" class="session-timer">00:00</div>
   <div id="transcript">
     <p class="system">[ Radio check — press and hold PTT to transmit ]</p>
   </div>
@@ -379,41 +537,60 @@ renderer.xr.addEventListener('sessionend', () => { orbitControls.enabled = true;
 const spark = new SparkRenderer({ renderer });
 scene.add(spark);
 
-// Try to load cockpit splat — falls back to placeholder geometry if missing
+// ── Gaussian Splat World Loading ──
 let hasSplatCockpit = false;
-async function loadCockpitSplat() {
+let currentSplatMesh = null;
+let scenarioWorlds = [];  // [{sceneId, path, ready}]
+let currentWorldIndex = 0;
+
+async function loadSplatWorld(url) {
   try {
-    const check = await fetch('/assets/cockpit.spz', { method: 'HEAD' });
+    const check = await fetch(url, { method: 'HEAD' });
     if (!check.ok) {
-      console.log('No cockpit.spz found — using placeholder geometry');
-      return;
+      console.log(`Splat not found: ${url}`);
+      return false;
     }
-    const splat = new SplatMesh({ url: '/assets/cockpit.spz' });
 
-    // World Labs generates scenes centered at origin looking down -Z.
-    // We need to position/orient the splat so the pilot seat aligns with our camera.
-    // The camera is at (0, 2.5, 0) looking forward (-Z).
-    // Place the splat at origin — the generation prompt was first-person from pilot seat,
-    // so the scene center should roughly be the pilot's head position.
+    // Remove previous splat if any
+    if (currentSplatMesh) {
+      scene.remove(currentSplatMesh);
+      currentSplatMesh = null;
+    }
+
+    const splat = new SplatMesh({ url });
     splat.position.set(0, 0, 0);
-
-    // World Labs .spz uses RUB coordinate system (same as Three.js/OpenGL)
-    // so no rotation needed by default. If it looks wrong, we can adjust:
-    // splat.rotation.y = Math.PI; // rotate 180 if facing backwards
-
     scene.add(splat);
+    currentSplatMesh = splat;
     hasSplatCockpit = true;
-    console.log('Gaussian splat cockpit loaded');
+    console.log(`Gaussian splat loaded: ${url}`);
 
-    // Move camera to splat center for proper viewing
     camera.position.set(0, 0, 0);
     orbitControls.target.set(0, 0, -1);
     orbitControls.update();
+    return true;
   } catch (e) {
-    console.log('Splat load failed, using placeholder:', e.message);
+    console.log('Splat load failed:', e.message);
+    return false;
   }
 }
-loadCockpitSplat();
+
+// Load the appropriate world for the current scenario phase
+async function loadWorldForPhase(phaseIndex) {
+  if (!scenarioWorlds.length) {
+    // Fallback: try default cockpit
+    await loadSplatWorld('/assets/cockpit.spz');
+    return;
+  }
+  const idx = Math.min(phaseIndex || 0, scenarioWorlds.length - 1);
+  const world = scenarioWorlds[idx];
+  if (world && world.path) {
+    currentWorldIndex = idx;
+    await loadSplatWorld(world.path);
+  }
+}
+
+// Try to load default cockpit on startup
+loadSplatWorld('/assets/cockpit.spz');
 
 // ── Lighting ──
 const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -493,8 +670,8 @@ scene.add(conn);
 const cockpitGroup = new THREE.Group();
 cockpitGroup.position.set(0, 1.8, 0);
 // Hide placeholder once splat loads
-loadCockpitSplat().then(() => {
-  if (hasSplatCockpit) cockpitGroup.visible = false;
+loadSplatWorld('/assets/cockpit.spz').then(ok => {
+  if (ok) cockpitGroup.visible = false;
 });
 
 // Dashboard
@@ -711,7 +888,7 @@ function updateVRPanel(messages) {
   recent.forEach((m, i) => {
     ctx.fillStyle = m.type === 'atc' ? '#00ff88' : m.type === 'pilot' ? '#88bbff' : '#555';
     const y = 25 + i * 35;
-    const label = m.type === 'atc' ? 'TWR: ' : m.type === 'pilot' ? 'YOU: ' : '    ';
+    const label = m.label || (m.type === 'atc' ? 'ATC: ' : m.type === 'pilot' ? 'YOU: ' : '    ');
     const text = label + m.text;
     // Word wrap
     const words = text.split(' ');
@@ -844,11 +1021,12 @@ function playRadioStatic(duration = 0.3) {
   source.start();
 }
 
-function addMessage(type, text) {
-  radioMessages.push({ type, text });
+function addMessage(type, text, facilityLabel) {
+  const label = type === 'atc' ? (facilityLabel || 'ATC') + ': ' : type === 'pilot' ? 'YOU: ' : '';
+  radioMessages.push({ type, text, label });
   const p = document.createElement('p');
   p.className = type;
-  p.textContent = (type === 'atc' ? 'TWR: ' : type === 'pilot' ? 'YOU: ' : '') + text;
+  p.textContent = label + text;
   transcript.appendChild(p);
   transcript.scrollTop = transcript.scrollHeight;
   updateVRPanel(radioMessages);
@@ -960,6 +1138,10 @@ controller0.addEventListener('squeezestart', startPTT);
 controller0.addEventListener('squeezeend', stopPTT);
 
 // ── ATC Communication ──
+const FREQ_TO_FACILITY = {
+  atis: 'ATIS', clearance: 'CLR DEL', ground: 'GND', tower: 'TWR', departure: 'DEP'
+};
+
 async function sendToATC(pilotMessage) {
   if (!pilotMessage) {
     statusLine.textContent = 'No speech detected — try again';
@@ -967,26 +1149,80 @@ async function sendToATC(pilotMessage) {
   }
 
   addMessage('pilot', pilotMessage);
-  statusLine.textContent = 'Waiting for tower...';
+
+  // Check if tuned to ATIS — you can't talk TO atis, it's a recording
+  if (activeFreq === 'atis') {
+    playRadioStatic(0.4);
+    addMessage('system', '[ ATIS is an automated broadcast — listen only. Switch to the appropriate frequency to talk to ATC. ]');
+    statusLine.textContent = 'ATIS is listen-only — change frequency';
+    return;
+  }
+
+  const facilityLabel = FREQ_TO_FACILITY[activeFreq] || 'ATC';
+  statusLine.textContent = `Waiting for ${facilityLabel}...`;
 
   try {
     const res = await fetch('/api/atc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: pilotMessage }),
+      body: JSON.stringify({
+        message: pilotMessage,
+        activeFrequency: activeFreq,
+        activeFrequencyValue: scenarioFreqs[activeFreq],
+      }),
     });
     const data = await res.json();
 
     if (data.reply) {
       playRadioStatic(0.2);
-      addMessage('atc', data.reply);
-      statusLine.textContent = 'Tower responded — hold PTT to reply';
-      // Try TTS
+      addMessage('atc', data.reply, facilityLabel);
+      statusLine.textContent = `${facilityLabel} responded — hold PTT to reply`;
       speakATC(data.reply);
+
+      // Auto-detect phase progression from ATC replies
+      detectPhaseChange(data.reply);
     }
   } catch (err) {
     addMessage('system', 'Radio communication error');
     statusLine.textContent = 'Communication lost — try again';
+  }
+}
+
+// Detect when ATC tells pilot to switch frequency → update phase + swap world
+function detectPhaseChange(reply) {
+  const r = reply.toLowerCase();
+  let newPhase = null;
+
+  if (r.includes('contact ground') || r.includes('switch to ground')) {
+    newPhase = 'ground';
+  } else if (r.includes('contact tower') || r.includes('switch to tower') || r.includes('monitor tower')) {
+    newPhase = 'tower';
+  } else if (r.includes('contact departure') || r.includes('switch to departure') || r.includes('contact approach')) {
+    newPhase = 'departure';
+  } else if (r.includes('contact clearance') || r.includes('clearance delivery')) {
+    if (currentPhase === 'atis') newPhase = 'clearance';
+  } else if (r.includes('cleared for takeoff') || r.includes('cleared for departure')) {
+    // Takeoff — advance world
+    if (scenarioWorlds.length > currentWorldIndex + 1) {
+      loadWorldForPhase(currentWorldIndex + 1);
+    }
+  } else if (r.includes('cleared to land') || r.includes('cleared touch and go')) {
+    // Landing — show approach world if available
+    const approachWorld = scenarioWorlds.find(w => w.sceneId === 'final-approach' && w.ready);
+    if (approachWorld) {
+      const idx = scenarioWorlds.indexOf(approachWorld);
+      if (idx >= 0) loadWorldForPhase(idx);
+    }
+  }
+
+  if (newPhase && newPhase !== currentPhase) {
+    setPhase(newPhase);
+    addMessage('system', `[ ATC says contact ${newPhase.charAt(0).toUpperCase() + newPhase.slice(1)} — switch your frequency ]`);
+
+    // Advance to next world if available
+    if (scenarioWorlds.length > currentWorldIndex + 1) {
+      loadWorldForPhase(currentWorldIndex + 1);
+    }
   }
 }
 
@@ -1104,17 +1340,22 @@ document.getElementById('history-btn').addEventListener('click', async () => {
     }
 
     let html = `<table><thead><tr>
-      <th>DATE</th><th>GRADE</th><th>TRANSMISSIONS</th><th>DEBRIEF</th><th>AUDIO</th><th></th>
+      <th>DATE</th><th>SCENARIO</th><th>AIRPORT</th><th>GRADE</th><th>TIME</th><th>TX</th><th>AUDIO</th><th></th>
     </tr></thead><tbody>`;
 
     data.sessions.forEach(s => {
       const date = new Date(s.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       const gradeClass = s.grade ? `grade-${s.grade[0]}` : '';
+      const scName = s.scenario?.name || '—';
+      const scAirport = s.scenario?.airport || '—';
+      const dur = s.durationMin != null ? `${s.durationMin}m` : '—';
       html += `<tr>
         <td>${date}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${scName}</td>
+        <td>${scAirport}</td>
         <td><span class="grade-badge ${gradeClass}">${s.grade || '—'}</span></td>
+        <td>${dur}</td>
         <td>${s.transmissions}</td>
-        <td>${s.hasDebrief ? 'Yes' : 'No'}</td>
         <td>${s.hasAudio ? '🔊' : '—'}</td>
         <td><button class="history-view-btn" data-file="${s.filename}">VIEW</button></td>
       </tr>`;
@@ -1178,11 +1419,24 @@ document.getElementById('reset-btn').addEventListener('click', async () => {
   stopSessionRecording();
   recordingStarted = false;
   recordedChunks = [];
+  clearInterval(timerInterval);
+  sessionStartTime = null;
+  activeScenario = null;
+  activeFreq = null;
+  scenarioFreqs = {};
   await fetch('/api/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
-  transcript.innerHTML = '<p class="system">[ New session — contact tower when ready ]</p>';
+  transcript.innerHTML = '';
   radioMessages = [];
-  statusLine.textContent = 'Session reset';
+  statusLine.textContent = '';
   updateVRPanel([]);
+
+  // Show welcome flow again
+  radioPanel.style.display = 'none';
+  resetBtn.style.display = 'none';
+  debriefBtnEl.style.display = 'none';
+  historyBtnEl.style.display = 'none';
+  welcomeEl.classList.remove('hidden');
+  showFlowStep('flow-title');
 });
 
 // ── Render loop ──
@@ -1201,7 +1455,10 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ── Welcome screen ──
+// ═══════════════════════════════════════════════════════════════
+// SCENARIO FLOW + FREQUENCY MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
 const welcomeEl = document.getElementById('welcome');
 const radioPanel = document.getElementById('radio-panel');
 const vrBtn = document.getElementById('vr-btn');
@@ -1216,7 +1473,304 @@ resetBtn.style.display = 'none';
 debriefBtnEl.style.display = 'none';
 historyBtnEl.style.display = 'none';
 
-document.getElementById('start-btn').addEventListener('click', () => {
+// ── Current scenario state ──
+let activeScenario = null;
+let activeFreq = null;        // which freq button is selected
+let scenarioFreqs = {};       // { atis: '127.875', ground: '121.9', ... }
+let currentPhase = 'atis';    // tracks progression
+let sessionStartTime = null;
+let timerInterval = null;
+
+// ── Flow navigation ──
+function showFlowStep(stepId) {
+  document.querySelectorAll('.flow-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+}
+
+// STEP 0 → STEP 1
+document.getElementById('flow-start-btn').addEventListener('click', async () => {
+  showFlowStep('flow-scenario');
+  // Load scenario types grouped by category
+  const res = await fetch('/api/scenarios/types');
+  const { types } = await res.json();
+  const grid = document.getElementById('scenario-grid');
+  grid.innerHTML = '';
+
+  // Group by category
+  const categories = {};
+  types.forEach(t => {
+    const cat = t.category || 'Other';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(t);
+  });
+
+  Object.entries(categories).forEach(([cat, items]) => {
+    const catLabel = document.createElement('div');
+    catLabel.className = 'sc-category-label';
+    catLabel.textContent = cat.toUpperCase();
+    grid.appendChild(catLabel);
+
+    items.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'scenario-card';
+      card.innerHTML = `
+        <div class="sc-name">${t.name}</div>
+        <span class="sc-diff sc-diff-${t.difficulty}">${t.difficulty.toUpperCase()}</span>
+        <div class="sc-desc">${t.description}</div>
+      `;
+      card.addEventListener('click', () => {
+        window._selectedScenarioType = t.id;
+        showFlowStep('flow-airport');
+        loadAirports();
+      });
+      grid.appendChild(card);
+    });
+  });
+});
+
+// Load airports
+async function loadAirports() {
+  const res = await fetch('/api/scenarios/airports');
+  const { airports } = await res.json();
+  const grid = document.getElementById('airport-grid');
+  grid.innerHTML = '';
+  airports.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'airport-card';
+    card.innerHTML = `<div class="ap-icao">${a.icao}</div><div class="ap-name">${a.name}</div>`;
+    card.addEventListener('click', () => startGeneration(a.icao));
+    grid.appendChild(card);
+  });
+}
+
+// Custom ICAO input
+document.getElementById('custom-icao-go').addEventListener('click', () => {
+  const icao = document.getElementById('custom-icao').value.trim().toUpperCase();
+  if (icao.length >= 3) startGeneration(icao);
+});
+document.getElementById('custom-icao').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('custom-icao-go').click();
+});
+
+// STEP 2 → STEP 3: Generate scenario
+async function startGeneration(airportIcao) {
+  showFlowStep('flow-loading');
+  document.getElementById('loading-detail').textContent = `Creating scenario at ${airportIcao}...`;
+  document.getElementById('loading-metar').textContent = '';
+
+  try {
+    // Show METAR as it loads
+    const metarRes = await fetch(`/api/metar/${airportIcao}`);
+    const { metar } = await metarRes.json();
+    if (metar) {
+      document.getElementById('loading-metar').textContent = `Live METAR: ${metar}`;
+    }
+
+    document.getElementById('loading-detail').textContent = `GPT is building your ${window._selectedScenarioType} scenario at ${airportIcao}...`;
+
+    // Kick off world generation in parallel with scenario generation
+    fetch(`/api/worlds/ensure/${window._selectedScenarioType}`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'generating') {
+          document.getElementById('loading-metar').textContent +=
+            `\n3D environments generating: ${data.missing.join(', ')}`;
+        }
+      })
+      .catch(() => {});
+
+    const genRes = await fetch('/api/scenarios/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenarioType: window._selectedScenarioType, airport: airportIcao }),
+    });
+
+    if (!genRes.ok) throw new Error('Generation failed');
+    const { scenario } = await genRes.json();
+    activeScenario = scenario;
+
+    // Fetch world status for this scenario
+    const worldRes = await fetch(`/api/worlds/status/${window._selectedScenarioType}`);
+    const worldData = await worldRes.json();
+    scenarioWorlds = worldData.worlds || [];
+
+    showBriefing(scenario);
+  } catch (err) {
+    document.getElementById('loading-detail').textContent = `Error: ${err.message}. Try again.`;
+    setTimeout(() => showFlowStep('flow-airport'), 2500);
+  }
+}
+
+// STEP 4: Show flight briefing
+function showBriefing(scenario) {
+  showFlowStep('flow-briefing');
+  const b = scenario.briefing;
+
+  // Header
+  const header = document.getElementById('briefing-header');
+  header.innerHTML = `
+    <div class="bh-title">${scenario.name}</div>
+    <div class="bh-row"><strong>Aircraft:</strong> ${scenario.aircraft} &nbsp; <strong>Tail:</strong> ${b.tailNumber}</div>
+    <div class="bh-row"><strong>Callsign:</strong> ${b.callsign}</div>
+    <div class="bh-row"><strong>Airport:</strong> ${b.airport} — ${b.airportName}</div>
+    ${b.destination ? `<div class="bh-row"><strong>Destination:</strong> ${b.destination} — ${b.destinationName}</div>` : ''}
+    <div class="bh-row"><strong>Type:</strong> ${b.flightType} &nbsp; <strong>Altitude:</strong> ${b.altitude}</div>
+    <div class="bh-row"><strong>Route:</strong> ${b.route}</div>
+    ${scenario.metar ? `<div class="bh-row" style="margin-top:6px;color:#fa0"><strong>METAR:</strong> <span style="font-size:10px">${scenario.metar}</span></div>` : ''}
+  `;
+
+  // Body — pilot brief
+  document.getElementById('briefing-body').textContent = scenario.pilotBrief;
+
+  // Frequencies
+  const freqDiv = document.getElementById('briefing-frequencies');
+  const freqs = b.frequencies;
+  let freqHtml = '<div class="bf-title">FREQUENCIES</div>';
+  const freqLabels = {
+    atis: 'ATIS', clearance: 'Clearance', ground: 'Ground', tower: 'Tower',
+    departure: 'Departure', approach: 'Approach', center: 'Center',
+    dest_atis: 'Dest ATIS', dest_approach: 'Dest Approach', dest_tower: 'Dest Tower', dest_ground: 'Dest Ground'
+  };
+  Object.entries(freqs).forEach(([k, v]) => {
+    if (v && v !== 'null') {
+      freqHtml += `<div class="bf-freq-row"><span class="bf-label">${freqLabels[k] || k}</span><span class="bf-val">${v}</span></div>`;
+    }
+  });
+  freqDiv.innerHTML = freqHtml;
+}
+
+// STEP 4 → STEP 5: Frequency quiz
+document.getElementById('flow-to-quiz').addEventListener('click', () => {
+  showFlowStep('flow-quiz');
+  buildQuiz();
+});
+
+function buildQuiz() {
+  const quiz = activeScenario.frequencyQuiz || [];
+  const container = document.getElementById('quiz-container');
+  container.innerHTML = '';
+  document.getElementById('quiz-result').style.display = 'none';
+  document.getElementById('flow-begin').style.display = 'none';
+  document.getElementById('quiz-retry').style.display = 'none';
+
+  if (quiz.length === 0) {
+    // No quiz data — skip
+    container.innerHTML = '<p style="color:#556">No frequency quiz for this scenario.</p>';
+    document.getElementById('flow-begin').style.display = '';
+    return;
+  }
+
+  quiz.forEach((q, qi) => {
+    const step = document.createElement('div');
+    step.className = 'quiz-step';
+    step.dataset.correct = q.correctFreq;
+    step.innerHTML = `
+      <div class="qs-label">${qi + 1}. ${q.step}</div>
+      <div class="qs-options">
+        ${q.options.map(o => `<button class="quiz-opt" data-val="${o}">${o}</button>`).join('')}
+      </div>
+    `;
+    step.querySelectorAll('.quiz-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        step.querySelectorAll('.quiz-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        checkQuizComplete();
+      });
+    });
+    container.appendChild(step);
+  });
+}
+
+function checkQuizComplete() {
+  const steps = document.querySelectorAll('.quiz-step');
+  let allAnswered = true;
+  steps.forEach(s => {
+    if (!s.querySelector('.quiz-opt.selected')) allAnswered = false;
+  });
+  if (!allAnswered) return;
+
+  // Grade it
+  let correct = 0;
+  steps.forEach(s => {
+    const sel = s.querySelector('.quiz-opt.selected');
+    const correctFreq = s.dataset.correct;
+    if (sel.dataset.val === correctFreq) {
+      sel.classList.add('correct');
+      correct++;
+    } else {
+      sel.classList.add('wrong');
+      // Highlight correct answer
+      s.querySelectorAll('.quiz-opt').forEach(b => {
+        if (b.dataset.val === correctFreq) b.classList.add('correct');
+      });
+    }
+    // Disable all buttons
+    s.querySelectorAll('.quiz-opt').forEach(b => { b.disabled = true; });
+  });
+
+  const result = document.getElementById('quiz-result');
+  result.style.display = '';
+  const pct = Math.round((correct / steps.length) * 100);
+  if (pct === 100) {
+    result.innerHTML = `<span style="color:#00ff88">PERFECT! ${correct}/${steps.length} correct. You know your frequencies.</span>`;
+    document.getElementById('flow-begin').style.display = '';
+  } else if (pct >= 60) {
+    result.innerHTML = `<span style="color:#fa0">${correct}/${steps.length} correct (${pct}%). Review the briefing — but you can proceed.</span>`;
+    document.getElementById('flow-begin').style.display = '';
+    document.getElementById('quiz-retry').style.display = '';
+  } else {
+    result.innerHTML = `<span style="color:#f44">${correct}/${steps.length} correct (${pct}%). Review the briefing and try again.</span>`;
+    document.getElementById('quiz-retry').style.display = '';
+  }
+}
+
+document.getElementById('quiz-retry').addEventListener('click', buildQuiz);
+
+// STEP 5 → SESSION START
+document.getElementById('flow-begin').addEventListener('click', async () => {
+  // Start server-side session with this scenario
+  await fetch('/api/scenarios/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenario: activeScenario }),
+  });
+
+  // Set up frequencies in the radio panel
+  const freqs = activeScenario.briefing.frequencies;
+  scenarioFreqs = {
+    atis: freqs.atis,
+    clearance: freqs.clearance,
+    ground: freqs.ground,
+    tower: freqs.tower,
+    departure: freqs.departure || freqs.approach,
+  };
+
+  // Update freq buttons
+  document.querySelectorAll('.freq-btn').forEach(btn => {
+    const key = btn.dataset.freq;
+    const val = scenarioFreqs[key];
+    btn.querySelector('.freq-val').textContent = val || '—';
+    if (!val || val === 'null') {
+      btn.style.opacity = '0.3';
+      btn.style.pointerEvents = 'none';
+    } else {
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+    }
+  });
+
+  // Set initial freq to ATIS if available, else ground
+  const startFreq = scenarioFreqs.atis ? 'atis' : 'ground';
+  selectFrequency(startFreq);
+  setPhase('atis');
+
+  // Start session timer
+  sessionStartTime = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+  updateTimer();
+
+  // Hide welcome, show radio UI
   welcomeEl.classList.add('hidden');
   radioPanel.style.display = '';
   vrBtn.style.display = '';
@@ -1225,11 +1779,96 @@ document.getElementById('start-btn').addEventListener('click', () => {
   historyBtnEl.style.display = '';
   audioCtx.resume();
 
-  // Initial radio messages
-  addMessage('system', '[ Session active — you are at the ramp, engine running ]');
-  addMessage('system', '[ Step 1: Request ATIS / weather ]');
-  addMessage('system', '[ Hold SPACE or Quest trigger to transmit ]');
+  // Load the first world for this scenario
+  await loadWorldForPhase(0);
+  if (hasSplatCockpit) cockpitGroup.visible = false;
+
+  // Initial messages
+  transcript.innerHTML = '';
+  radioMessages = [];
+  const b = activeScenario.briefing;
+  addMessage('system', `[ ${activeScenario.name} — ${b.airport} ]`);
+  addMessage('system', `[ You are ${b.callsign} (${b.tailNumber}), at the ramp, engine running ]`);
+  addMessage('system', `[ Tuned to ${startFreq.toUpperCase()} ${scenarioFreqs[startFreq]} — hold SPACE/trigger to transmit ]`);
+
+  // Show world info
+  const readyWorlds = scenarioWorlds.filter(w => w.ready);
+  if (readyWorlds.length > 1) {
+    addMessage('system', `[ ${readyWorlds.length} 3D environments loaded — view changes as you progress ]`);
+  }
+
+  // Update the in-cockpit radio display
+  updateCockpitRadioDisplay();
 });
+
+// ── Frequency selection ──
+function selectFrequency(freqKey) {
+  activeFreq = freqKey;
+  document.querySelectorAll('.freq-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.freq === freqKey);
+  });
+  const val = scenarioFreqs[freqKey] || '---';
+  const labels = { atis: 'ATIS', clearance: 'CLEARANCE', ground: 'GROUND', tower: 'TOWER', departure: 'DEPARTURE' };
+  document.getElementById('active-freq-display').innerHTML = `COM1 &nbsp; ${val} &nbsp; | &nbsp; ${labels[freqKey] || freqKey.toUpperCase()}`;
+  updateCockpitRadioDisplay();
+}
+
+document.querySelectorAll('.freq-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.freq;
+    if (scenarioFreqs[key] && scenarioFreqs[key] !== 'null') {
+      selectFrequency(key);
+      addMessage('system', `[ Tuned to ${key.toUpperCase()} — ${scenarioFreqs[key]} ]`);
+    }
+  });
+});
+
+// ── Phase tracker ──
+function setPhase(phase) {
+  currentPhase = phase;
+  const phases = ['atis', 'clearance', 'ground', 'tower', 'departure'];
+  const idx = phases.indexOf(phase);
+  document.querySelectorAll('.phase').forEach(el => {
+    const pIdx = phases.indexOf(el.dataset.phase);
+    el.classList.remove('active-phase', 'done-phase');
+    if (pIdx < idx) el.classList.add('done-phase');
+    if (pIdx === idx) el.classList.add('active-phase');
+  });
+}
+
+// ── Session timer ──
+function updateTimer() {
+  if (!sessionStartTime) return;
+  const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  document.getElementById('session-timer').textContent = `${m}:${s}`;
+}
+
+// ── Update cockpit radio display with scenario frequencies ──
+function updateCockpitRadioDisplay() {
+  if (!radioCanvas) return;
+  const rctx2 = radioCanvas.getContext('2d');
+  rctx2.fillStyle = '#0a0f0a';
+  rctx2.fillRect(0, 0, 256, 128);
+  rctx2.fillStyle = '#00ff88';
+  rctx2.font = '22px Courier New';
+  const val = scenarioFreqs[activeFreq] || '---';
+  const label = (activeFreq || 'COM1').toUpperCase();
+  rctx2.fillText(`${label} ${val}`, 10, 35);
+  rctx2.font = '16px Courier New';
+  rctx2.fillStyle = '#446644';
+  const nextFreqs = Object.entries(scenarioFreqs).filter(([k, v]) => v && v !== 'null' && k !== activeFreq).slice(0, 2);
+  nextFreqs.forEach(([k, v], i) => {
+    rctx2.fillText(`${k.toUpperCase()} ${v}`, 10, 65 + i * 28);
+  });
+  radioTex.needsUpdate = true;
+}
+
+// ── Back buttons ──
+document.getElementById('flow-back-1').addEventListener('click', () => showFlowStep('flow-title'));
+document.getElementById('flow-back-2').addEventListener('click', () => showFlowStep('flow-scenario'));
+document.getElementById('flow-back-4').addEventListener('click', () => showFlowStep('flow-scenario'));
 
 document.getElementById('welcome-history').addEventListener('click', () => {
   document.getElementById('history-btn').click();

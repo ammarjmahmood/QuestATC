@@ -3,6 +3,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
 import { generateCockpit } from './generate-cockpit.js';
+import { getScenarioTypes, getAirports, buildGenerationPrompt, getScenarioContext } from './scenarios.js';
+import { getWorldsForScenario, ensureWorldsForScenario, generateWorld, listAllScenes } from './generate-worlds.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,6 +38,16 @@ function saveSession(sessionId, session) {
     messages: session.messages,
     debrief: session.debrief || null,
     grade: session.grade || null,
+    scenario: session.scenario ? {
+      name: session.scenario.name,
+      aircraft: session.scenario.aircraft,
+      airport: session.scenario.briefing?.airport,
+      airportName: session.scenario.briefing?.airportName,
+      destination: session.scenario.briefing?.destination,
+      callsign: session.scenario.briefing?.callsign,
+      flightType: session.scenario.briefing?.flightType,
+    } : null,
+    metar: session.metar || null,
   };
   const filename = `${new Date(session.startTime).toISOString().replace(/[:.]/g, '-')}_${sessionId}.json`;
   writeFileSync(join(HISTORY_DIR, filename), JSON.stringify(record, null, 2));
@@ -49,7 +61,7 @@ function loadAllSessions() {
     try {
       const data = JSON.parse(readFileSync(join(HISTORY_DIR, f), 'utf-8'));
       // Return summary (not full messages — those can be fetched individually)
-      const pilotMsgs = data.messages.filter(m => m.role === 'user' && m.content !== '[DEBRIEF]');
+      const pilotMsgs = data.messages.filter(m => m.role === 'user' && !m.content.startsWith('['));
       const audioFile = f.replace('.json', '.webm');
       return {
         filename: f,
@@ -60,6 +72,8 @@ function loadAllSessions() {
         transmissions: pilotMsgs.length,
         hasDebrief: !!data.debrief,
         hasAudio: existsSync(join(HISTORY_DIR, audioFile)),
+        scenario: data.scenario || null,
+        durationMin: data.endTime && data.startTime ? Math.round((data.endTime - data.startTime) / 60000) : null,
       };
     } catch { return null; }
   }).filter(Boolean);
@@ -325,25 +339,40 @@ When the user sends the special message "[DEBRIEF]" or asks for feedback/grade, 
 `;
 
 // ═══════════════════════════════════════════════════════════════
+// REAL-TIME METAR (free public API — no key needed)
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchMetar(icao) {
+  try {
+    const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${icao}&format=json`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.length > 0) return data[0].rawOb || data[0].raw || null;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SERVER LOGIC
 // ═══════════════════════════════════════════════════════════════
 
 function getSession(sessionId) {
   if (!sessions.has(sessionId)) {
-    sessions.set(sessionId, { messages: [], startTime: Date.now() });
+    sessions.set(sessionId, { messages: [], startTime: Date.now(), scenario: null });
   }
   return sessions.get(sessionId);
 }
 
-async function chatWithAzure(messages, maxTokens = 400) {
-  // Try the new v1 API path first, fall back to legacy deployments path
+async function chatWithAzure(systemPrompt, messages, maxTokens = 400) {
   const v1Url = `${AZURE_ENDPOINT}/openai/v1/chat/completions`;
   const legacyUrl = `${AZURE_ENDPOINT}/openai/deployments/${AZURE_DEPLOYMENT}/chat/completions?api-version=${AZURE_API_VERSION}`;
 
   const body = JSON.stringify({
     model: AZURE_DEPLOYMENT,
     messages: [
-      { role: 'system', content: ATC_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...messages,
     ],
     max_tokens: maxTokens,
@@ -355,10 +384,7 @@ async function chatWithAzure(messages, maxTokens = 400) {
     'Content-Type': 'application/json',
   };
 
-  // Try v1 path
   let res = await fetch(v1Url, { method: 'POST', headers, body });
-
-  // Fall back to legacy path if v1 fails
   if (!res.ok && res.status === 404) {
     res = await fetch(legacyUrl, { method: 'POST', headers, body });
   }
@@ -372,20 +398,151 @@ async function chatWithAzure(messages, maxTokens = 400) {
   return data.choices[0].message.content;
 }
 
+// Build full system prompt with scenario context + live METAR
+function buildSystemPrompt(session) {
+  let prompt = ATC_SYSTEM_PROMPT;
+  if (session.scenario) {
+    prompt += '\n\n' + getScenarioContext(session.scenario);
+  }
+  if (session.metar) {
+    prompt += `\n\n## LIVE WEATHER (real METAR — use this for ATIS):\n${session.metar}\nDecode this METAR and use the real wind, visibility, ceiling, altimeter in your ATIS broadcast. Do NOT make up weather — use these real numbers.`;
+  }
+  return prompt;
+}
+
+// ── Scenario endpoints ──
+
+// Get available scenario types
+app.get('/api/scenarios/types', (req, res) => {
+  res.json({ types: getScenarioTypes() });
+});
+
+// Get airport list
+app.get('/api/scenarios/airports', (req, res) => {
+  res.json({ airports: getAirports() });
+});
+
+// Get real-time METAR for an airport
+app.get('/api/metar/:icao', async (req, res) => {
+  const metar = await fetchMetar(req.params.icao.toUpperCase());
+  res.json({ metar });
+});
+
+// Generate a scenario (calls GPT to create a unique scenario)
+app.post('/api/scenarios/generate', async (req, res) => {
+  const { scenarioType, airport } = req.body;
+  if (!scenarioType || !airport) {
+    return res.status(400).json({ error: 'scenarioType and airport required' });
+  }
+
+  try {
+    // Fetch live METAR for realism
+    const metar = await fetchMetar(airport.toUpperCase());
+
+    const genPrompt = buildGenerationPrompt(scenarioType, airport);
+    const metarLine = metar ? `\n\nCURRENT REAL METAR FOR ${airport}: ${metar}\nUse this real weather data in the scenario. Decode it for the ATIS and wind information.` : '';
+
+    const result = await chatWithAzure(
+      genPrompt + metarLine,
+      [{ role: 'user', content: `Generate a ${scenarioType} scenario at ${airport}. Return ONLY valid JSON.` }],
+      2000
+    );
+
+    // Parse the JSON response (strip any markdown fencing)
+    const jsonStr = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const scenario = JSON.parse(jsonStr);
+    scenario.metar = metar;
+
+    res.json({ scenario });
+  } catch (err) {
+    console.error('Scenario generation error:', err.message);
+    res.status(500).json({ error: 'Failed to generate scenario' });
+  }
+});
+
+// ── World / 3D environment endpoints ──
+
+// Get worlds needed for a scenario type + their ready status
+app.get('/api/worlds/status/:scenarioType', (req, res) => {
+  const worlds = getWorldsForScenario(req.params.scenarioType);
+  res.json({ worlds });
+});
+
+// List all scene definitions and cache status
+app.get('/api/worlds/list', (req, res) => {
+  res.json({ scenes: listAllScenes() });
+});
+
+// Generate a specific world by scene ID (long-running — returns immediately, generates in background)
+app.post('/api/worlds/generate/:sceneId', (req, res) => {
+  const { sceneId } = req.params;
+  res.json({ status: 'generating', sceneId });
+  // Fire and forget — client can poll /api/worlds/status/:scenarioType
+  generateWorld(sceneId).then(r => {
+    console.log(`  [worlds] Background generation complete: ${sceneId} → ${r.path || 'failed'}`);
+  });
+});
+
+// Generate all missing worlds for a scenario type (long-running)
+app.post('/api/worlds/ensure/:scenarioType', (req, res) => {
+  const scenarioType = req.params.scenarioType;
+  const worlds = getWorldsForScenario(scenarioType);
+  const missing = worlds.filter(w => !w.ready);
+
+  if (missing.length === 0) {
+    return res.json({ status: 'all_ready', worlds });
+  }
+
+  res.json({ status: 'generating', missing: missing.map(w => w.sceneId), worlds });
+  // Generate in background
+  ensureWorldsForScenario(scenarioType).then(results => {
+    console.log(`  [worlds] Batch generation for ${scenarioType}: ${results.map(r => `${r.sceneId}=${r.path ? 'OK' : 'FAIL'}`).join(', ')}`);
+  });
+});
+
+// Serve world assets
+app.use('/assets/worlds', express.static(join(__dirname, '..', 'client', 'assets', 'worlds')));
+
+// Start a session with a specific scenario
+app.post('/api/scenarios/start', async (req, res) => {
+  const { scenario, sessionId = 'default' } = req.body;
+  if (!scenario) return res.status(400).json({ error: 'scenario required' });
+
+  // Reset session with this scenario
+  const metar = scenario.metar || await fetchMetar(scenario.briefing?.airport);
+  sessions.set(sessionId, {
+    messages: [],
+    startTime: Date.now(),
+    scenario,
+    metar,
+  });
+
+  res.json({ ok: true, sessionId });
+});
+
 // Main ATC chat endpoint
 app.post('/api/atc', async (req, res) => {
-  const { message, sessionId = 'default' } = req.body;
+  const { message, sessionId = 'default', activeFrequency, activeFrequencyValue } = req.body;
   if (!message) return res.status(400).json({ error: 'message required' });
 
   const session = getSession(sessionId);
-  session.messages.push({ role: 'user', content: message });
+
+  // Check if pilot is on the wrong frequency for what they're trying to do
+  // Inject frequency context so the ATC agent knows which position to play
+  const freqContext = activeFrequency
+    ? `[PILOT IS ON ${activeFrequency.toUpperCase()} FREQUENCY (${activeFrequencyValue || 'unknown'}). Respond as the ${activeFrequency} controller. If the pilot appears to be calling the wrong facility for this frequency (e.g., calling "Tower" while on Ground freq), respond with: "Station calling on [frequency], you are on [facility] frequency. Check your frequency." Keep it realistic — in real aviation, if you're on the wrong freq, you either get no response or get told you're on the wrong freq.]`
+    : '';
+
+  const taggedMessage = freqContext ? `${freqContext}\n${message}` : message;
+  session.messages.push({ role: 'user', content: taggedMessage });
 
   if (session.messages.length > 50) {
     session.messages = session.messages.slice(-50);
   }
 
   try {
-    const atcReply = await chatWithAzure(session.messages);
+    const sysPrompt = buildSystemPrompt(session);
+    const atcReply = await chatWithAzure(sysPrompt, session.messages);
     session.messages.push({ role: 'assistant', content: atcReply });
 
     // Strip the [RADIO] tag before sending to client (keep [DEBRIEF] for client to handle)
@@ -411,7 +568,8 @@ app.post('/api/debrief', async (req, res) => {
   session.messages.push({ role: 'user', content: '[DEBRIEF]' });
 
   try {
-    const debrief = await chatWithAzure(session.messages, 1500);
+    const sysPrompt = buildSystemPrompt(session);
+    const debrief = await chatWithAzure(sysPrompt, session.messages, 1500);
     session.messages.push({ role: 'assistant', content: debrief });
 
     const cleanReply = debrief.replace(/^\[DEBRIEF\]\s*/i, '');
