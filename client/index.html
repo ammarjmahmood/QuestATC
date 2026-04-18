@@ -506,13 +506,13 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isQuest });
 renderer.setPixelRatio(isQuest ? 1 : window.devicePixelRatio); // lower for Quest perf
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+if (!isQuest) renderer.toneMapping = THREE.ACESFilmicToneMapping; // skip on Quest for perf
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb); // sky blue
-scene.fog = new THREE.Fog(0x87ceeb, 500, 5000);
+if (!isQuest) scene.fog = new THREE.Fog(0x87ceeb, 500, 5000); // fog is expensive on Quest
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, isQuest ? 2000 : 10000);
 camera.position.set(0, 2.5, 0); // seated cockpit height
 camera.lookAt(0, 2.5, -1); // look forward through windshield
 
@@ -557,6 +557,12 @@ let scenarioWorlds = [];  // [{sceneId, path, ready}]
 let currentWorldIndex = 0;
 
 async function loadSplatWorld(url) {
+  // Skip splats entirely on Quest — placeholder geometry is much lighter
+  if (isQuest) {
+    console.log('Quest detected — using placeholder cockpit for performance');
+    return false;
+  }
+
   try {
     const check = await fetch(url, { method: 'HEAD' });
     if (!check.ok) {
@@ -576,6 +582,8 @@ async function loadSplatWorld(url) {
     console.log(`Loading splat: ${url}...`);
     const splat = new SplatMesh({ url });
     splat.position.set(0, 0, 0);
+    // World Labs splats can be upside down — flip on X axis
+    splat.scale.set(1, -1, 1);
     scene.add(splat);
     currentSplatMesh = splat;
     hasSplatCockpit = true;
@@ -613,7 +621,7 @@ const ambient = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambient);
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(100, 80, 50);
-sun.castShadow = true;
+sun.castShadow = !isQuest; // shadows expensive on Quest
 scene.add(sun);
 
 // ── Ground / Runway ──
