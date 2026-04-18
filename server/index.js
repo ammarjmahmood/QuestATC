@@ -752,20 +752,51 @@ process.on('SIGINT', () => { restoreFirewall(); process.exit(0); });
 process.on('SIGTERM', () => { restoreFirewall(); process.exit(0); });
 process.on('exit', restoreFirewall);
 
-app.listen(PORT, '0.0.0.0', async () => {
+// ── HTTPS for Quest (mic + WebXR require secure context) ──
+import https from 'https';
+
+const CERT_DIR = join(__dirname, '..', 'certs');
+const certPath = join(CERT_DIR, 'cert.pem');
+const keyPath = join(CERT_DIR, 'key.pem');
+const hasSSL = existsSync(certPath) && existsSync(keyPath);
+
+let server;
+if (hasSSL) {
+  const sslOpts = {
+    key: readFileSync(keyPath),
+    cert: readFileSync(certPath),
+  };
+  server = https.createServer(sslOpts, app);
+} else {
+  server = app;
+}
+
+const startServer = hasSSL
+  ? (cb) => server.listen(PORT, '0.0.0.0', cb)
+  : (cb) => app.listen(PORT, '0.0.0.0', cb);
+
+startServer(async () => {
+  const proto = hasSSL ? 'https' : 'http';
   console.log('\n  ╔══════════════════════════════════════╗');
   console.log('  ║       VRPilotATC — Radio Trainer     ║');
   console.log('  ╚══════════════════════════════════════╝\n');
-  console.log(`  Server        → http://localhost:${PORT}`);
+  console.log(`  Server        → ${proto}://localhost:${PORT}`);
 
   const os = await import('os');
   const nets = os.networkInterfaces();
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        console.log(`  Quest access  → http://${net.address}:${PORT}`);
+        console.log(`  Quest access  → ${proto}://${net.address}:${PORT}`);
       }
     }
+  }
+
+  if (hasSSL) {
+    console.log('\n  HTTPS:          enabled (self-signed cert)');
+    console.log('  Note:           Accept the cert warning in Quest browser');
+  } else {
+    console.log('\n  HTTPS:          DISABLED (run: openssl req -x509 -newkey rsa:2048 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes)');
   }
 
   console.log(`\n  Azure OpenAI:   ${AZURE_API_KEY ? 'configured' : 'NOT SET'}`);
