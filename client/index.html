@@ -624,71 +624,74 @@ sun.position.set(100, 80, 50);
 sun.castShadow = !isQuest; // shadows expensive on Quest
 scene.add(sun);
 
-// ── Ground / Runway ──
-// Grass
-const groundGeo = new THREE.PlaneGeometry(5000, 5000);
-const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a7a3a });
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = 0;
-scene.add(ground);
+// ── Ground / Runway (skip on Quest for performance) ──
+if (!isQuest) {
+  const groundGeo = new THREE.PlaneGeometry(5000, 5000);
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a7a3a });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
 
-// Runway
-const runwayGeo = new THREE.PlaneGeometry(45, 2500);
-const runwayMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
-const runway = new THREE.Mesh(runwayGeo, runwayMat);
-runway.rotation.x = -Math.PI / 2;
-runway.position.set(0, 0.01, -800);
-scene.add(runway);
+  const runwayGeo = new THREE.PlaneGeometry(45, 2500);
+  const runwayMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
+  const runway = new THREE.Mesh(runwayGeo, runwayMat);
+  runway.rotation.x = -Math.PI / 2;
+  runway.position.set(0, 0.01, -800);
+  scene.add(runway);
 
-// Runway markings (center line dashes)
-for (let z = -1800; z < 200; z += 40) {
-  const dash = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.5, 15),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  for (let z = -1800; z < 200; z += 40) {
+    const dash = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 15),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(0, 0.02, z);
+    scene.add(dash);
+  }
+
+  const makeRunwayNumber = (text, z, rot) => {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 180px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(20, 20),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = rot;
+    m.position.set(0, 0.03, z);
+    scene.add(m);
+  };
+  makeRunwayNumber('22', 150, 0);
+  makeRunwayNumber('04', -1750, Math.PI);
+
+  const taxiGeo = new THREE.PlaneGeometry(20, 600);
+  const taxiMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+  const taxiway = new THREE.Mesh(taxiGeo, taxiMat);
+  taxiway.rotation.x = -Math.PI / 2;
+  taxiway.position.set(60, 0.01, -200);
+  scene.add(taxiway);
+
+  const connGeo = new THREE.PlaneGeometry(80, 20);
+  const conn = new THREE.Mesh(connGeo, taxiMat.clone());
+  conn.rotation.x = -Math.PI / 2;
+  conn.position.set(30, 0.01, 100);
+  scene.add(conn);
+} else {
+  // Quest: just a simple ground plane
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(200, 200),
+    new THREE.MeshBasicMaterial({ color: 0x3a7a3a })
   );
-  dash.rotation.x = -Math.PI / 2;
-  dash.position.set(0, 0.02, z);
-  scene.add(dash);
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
 }
-
-// Runway numbers "22"
-const makeRunwayNumber = (text, z, rot) => {
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 256;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 180px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, 128, 128);
-  const tex = new THREE.CanvasTexture(c);
-  const m = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true })
-  );
-  m.rotation.x = -Math.PI / 2;
-  m.rotation.z = rot;
-  m.position.set(0, 0.03, z);
-  scene.add(m);
-};
-makeRunwayNumber('22', 150, 0);
-makeRunwayNumber('04', -1750, Math.PI);
-
-// Taxiway
-const taxiGeo = new THREE.PlaneGeometry(20, 600);
-const taxiMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
-const taxiway = new THREE.Mesh(taxiGeo, taxiMat);
-taxiway.rotation.x = -Math.PI / 2;
-taxiway.position.set(60, 0.01, -200);
-scene.add(taxiway);
-
-// Taxiway connector
-const connGeo = new THREE.PlaneGeometry(80, 20);
-const conn = new THREE.Mesh(connGeo, taxiMat.clone());
-conn.rotation.x = -Math.PI / 2;
-conn.position.set(30, 0.01, 100);
-scene.add(conn);
 
 // ── Simple cockpit frame (placeholder until gaussian splat replaces it) ──
 const cockpitGroup = new THREE.Group();
@@ -723,9 +726,10 @@ const gaugePositions = [
 ];
 
 gaugePositions.forEach(([x, y, z]) => {
+  const segments = isQuest ? 12 : 32;
   // Gauge bezel
   const bezel = new THREE.Mesh(
-    new THREE.RingGeometry(0.1, 0.12, 32),
+    new THREE.RingGeometry(0.1, 0.12, segments),
     new THREE.MeshBasicMaterial({ color: 0x666666 })
   );
   bezel.position.set(x, y, z);
@@ -733,7 +737,7 @@ gaugePositions.forEach(([x, y, z]) => {
 
   // Gauge face
   const face = new THREE.Mesh(
-    new THREE.CircleGeometry(0.1, 32),
+    new THREE.CircleGeometry(0.1, segments),
     new THREE.MeshBasicMaterial({ color: 0x0a0a0a })
   );
   face.position.set(x, y, z + 0.001);
@@ -801,59 +805,59 @@ cockpitGroup.add(overhead);
 
 scene.add(cockpitGroup);
 
-// ── Control tower in the distance ──
-const towerBase = new THREE.Mesh(
-  new THREE.CylinderGeometry(3, 4, 30, 8),
-  new THREE.MeshLambertMaterial({ color: 0xcccccc })
-);
-towerBase.position.set(-200, 15, -300);
-scene.add(towerBase);
-
-const towerCab = new THREE.Mesh(
-  new THREE.CylinderGeometry(6, 5, 5, 8),
-  new THREE.MeshLambertMaterial({ color: 0x336666 })
-);
-towerCab.position.set(-200, 32, -300);
-scene.add(towerCab);
-
-// ── Parked aircraft ──
-const makeSimplePlane = (x, z, rot) => {
-  const g = new THREE.Group();
-  // fuselage
-  g.add(new THREE.Mesh(
-    new THREE.CylinderGeometry(0.6, 0.6, 8, 8),
-    new THREE.MeshLambertMaterial({ color: 0xeeeeee })
-  ));
-  // wing
-  const wing = new THREE.Mesh(
-    new THREE.BoxGeometry(12, 0.1, 1.5),
-    new THREE.MeshLambertMaterial({ color: 0xdddddd })
+// ── Control tower & parked aircraft (desktop only) ──
+if (!isQuest) {
+  const towerBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(3, 4, 30, 8),
+    new THREE.MeshLambertMaterial({ color: 0xcccccc })
   );
-  wing.position.y = 0;
-  g.add(wing);
-  g.position.set(x, 1.5, z);
-  g.rotation.y = rot;
-  g.children[0].rotation.z = Math.PI / 2;
-  scene.add(g);
-};
-makeSimplePlane(60, -50, 0.3);
-makeSimplePlane(60, -120, -0.1);
-makeSimplePlane(-40, -500, Math.PI);
+  towerBase.position.set(-200, 15, -300);
+  scene.add(towerBase);
+
+  const towerCab = new THREE.Mesh(
+    new THREE.CylinderGeometry(6, 5, 5, 8),
+    new THREE.MeshLambertMaterial({ color: 0x336666 })
+  );
+  towerCab.position.set(-200, 32, -300);
+  scene.add(towerCab);
+
+  const makeSimplePlane = (x, z, rot) => {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.6, 0.6, 8, 8),
+      new THREE.MeshLambertMaterial({ color: 0xeeeeee })
+    ));
+    const wing = new THREE.Mesh(
+      new THREE.BoxGeometry(12, 0.1, 1.5),
+      new THREE.MeshLambertMaterial({ color: 0xdddddd })
+    );
+    g.add(wing);
+    g.position.set(x, 1.5, z);
+    g.rotation.y = rot;
+    g.children[0].rotation.z = Math.PI / 2;
+    scene.add(g);
+  };
+  makeSimplePlane(60, -50, 0.3);
+  makeSimplePlane(60, -120, -0.1);
+  makeSimplePlane(-40, -500, Math.PI);
+}
 
 // ── WebXR Controllers ──
-const controllerModelFactory = new XRControllerModelFactory();
-
 const controller0 = renderer.xr.getController(0);
 scene.add(controller0);
 const controller1 = renderer.xr.getController(1);
 scene.add(controller1);
 
-const grip0 = renderer.xr.getControllerGrip(0);
-grip0.add(controllerModelFactory.createControllerModel(grip0));
-scene.add(grip0);
-const grip1 = renderer.xr.getControllerGrip(1);
-grip1.add(controllerModelFactory.createControllerModel(grip1));
-scene.add(grip1);
+// Controller models — skip on Quest (saves loading GLB models)
+if (!isQuest) {
+  const controllerModelFactory = new XRControllerModelFactory();
+  const grip0 = renderer.xr.getControllerGrip(0);
+  grip0.add(controllerModelFactory.createControllerModel(grip0));
+  scene.add(grip0);
+  const grip1 = renderer.xr.getControllerGrip(1);
+  grip1.add(controllerModelFactory.createControllerModel(grip1));
+  scene.add(grip1);
+}
 
 // ── VR Button ──
 const vrBtnEl = document.getElementById('vr-btn');
