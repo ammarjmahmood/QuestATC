@@ -1490,9 +1490,9 @@ const resetBtn = document.getElementById('reset-btn');
 const debriefBtnEl = document.getElementById('debrief-btn');
 const historyBtnEl = document.getElementById('history-btn');
 
-// Hide UI until session starts
+// Hide UI until session starts (VR button stays visible on Quest)
 radioPanel.style.display = 'none';
-vrBtn.style.display = 'none';
+if (!isQuest) vrBtn.style.display = 'none';
 resetBtn.style.display = 'none';
 debriefBtnEl.style.display = 'none';
 historyBtnEl.style.display = 'none';
