@@ -713,6 +713,45 @@ app.post('/api/regenerate-cockpit', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// ── Firewall management (macOS) ──
+// Disables firewall on start so Quest can connect, re-enables on exit
+import { execSync, exec } from 'child_process';
+
+const isMac = process.platform === 'darwin';
+let firewallWasEnabled = false;
+
+function disableFirewall() {
+  if (!isMac) return;
+  try {
+    const status = execSync('/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate', { encoding: 'utf-8' });
+    firewallWasEnabled = status.includes('enabled');
+    if (firewallWasEnabled) {
+      exec('sudo -n /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off', (err) => {
+        if (!err) {
+          console.log('  Firewall:       disabled for Quest access (will re-enable on exit)');
+        }
+      });
+    }
+  } catch {}
+}
+
+function restoreFirewall() {
+  if (!isMac || !firewallWasEnabled) return;
+  try {
+    execSync('sudo -n /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on', { stdio: 'ignore' });
+    console.log('\n  Firewall re-enabled.');
+  } catch {
+    console.log('\n  Could not re-enable firewall automatically. Run:');
+    console.log('  sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on');
+  }
+}
+
+// Re-enable firewall on any exit
+process.on('SIGINT', () => { restoreFirewall(); process.exit(0); });
+process.on('SIGTERM', () => { restoreFirewall(); process.exit(0); });
+process.on('exit', restoreFirewall);
+
 app.listen(PORT, '0.0.0.0', async () => {
   console.log('\n  ╔══════════════════════════════════════╗');
   console.log('  ║       VRPilotATC — Radio Trainer     ║');
@@ -732,6 +771,9 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`\n  Azure OpenAI:   ${AZURE_API_KEY ? 'configured' : 'NOT SET'}`);
   console.log(`  ElevenLabs TTS: ${ELEVENLABS_API_KEY ? 'enabled' : 'DISABLED'}`);
   console.log(`  World Labs:     ${process.env.WORLDLABS_API_KEY ? 'configured' : 'NOT SET'}\n`);
+
+  // Auto-disable firewall for Quest access
+  disableFirewall();
 
   // Generate cockpit gaussian splat on first run
   await generateCockpit();

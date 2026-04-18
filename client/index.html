@@ -501,8 +501,9 @@ import { SparkRenderer, SplatMesh } from 'https://sparkjs.dev/releases/spark/2.0
 
 // ── Scene setup ──
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
+const isQuest = /Quest/i.test(navigator.userAgent) || /OculusBrowser/i.test(navigator.userAgent);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isQuest });
+renderer.setPixelRatio(isQuest ? 1 : window.devicePixelRatio); // lower for Quest perf
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -533,9 +534,21 @@ orbitControls.maxDistance = 0;
 renderer.xr.addEventListener('sessionstart', () => { orbitControls.enabled = false; });
 renderer.xr.addEventListener('sessionend', () => { orbitControls.enabled = true; });
 
-// ── Spark Gaussian Splat Renderer ──
-const spark = new SparkRenderer({ renderer });
-scene.add(spark);
+// ── Spark Gaussian Splat Renderer (lazy init) ──
+let spark = null;
+let sparkInitialized = false;
+
+function initSpark() {
+  if (sparkInitialized) return;
+  sparkInitialized = true;
+  try {
+    spark = new SparkRenderer({ renderer });
+    scene.add(spark);
+    console.log('SparkRenderer initialized');
+  } catch (e) {
+    console.error('SparkRenderer init failed:', e.message);
+  }
+}
 
 // ── Gaussian Splat World Loading ──
 let hasSplatCockpit = false;
@@ -551,12 +564,16 @@ async function loadSplatWorld(url) {
       return false;
     }
 
+    // Init Spark on first splat load
+    initSpark();
+
     // Remove previous splat if any
     if (currentSplatMesh) {
       scene.remove(currentSplatMesh);
       currentSplatMesh = null;
     }
 
+    console.log(`Loading splat: ${url}...`);
     const splat = new SplatMesh({ url });
     splat.position.set(0, 0, 0);
     scene.add(splat);
@@ -589,8 +606,7 @@ async function loadWorldForPhase(phaseIndex) {
   }
 }
 
-// Try to load default cockpit on startup
-loadSplatWorld('/assets/cockpit.spz');
+// Don't load splat on startup — wait until session starts (Quest can't handle it during UI)
 
 // ── Lighting ──
 const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -669,10 +685,7 @@ scene.add(conn);
 // ── Simple cockpit frame (placeholder until gaussian splat replaces it) ──
 const cockpitGroup = new THREE.Group();
 cockpitGroup.position.set(0, 1.8, 0);
-// Hide placeholder once splat loads
-loadSplatWorld('/assets/cockpit.spz').then(ok => {
-  if (ok) cockpitGroup.visible = false;
-});
+// Placeholder cockpit is visible until session starts and splat loads
 
 // Dashboard
 const dashGeo = new THREE.BoxGeometry(3, 0.8, 0.3);
@@ -838,19 +851,30 @@ scene.add(grip1);
 const vrBtnEl = document.getElementById('vr-btn');
 if ('xr' in navigator) {
   navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+    console.log('WebXR immersive-vr supported:', supported);
     if (supported) {
       vrBtnEl.disabled = false;
       vrBtnEl.textContent = 'ENTER VR';
+      // Show VR button immediately on Quest (don't wait for session start)
+      if (isQuest) vrBtnEl.style.display = '';
       vrBtnEl.addEventListener('click', async () => {
-        const session = await navigator.xr.requestSession('immersive-vr', {
-          optionalFeatures: ['local-floor', 'hand-tracking']
-        });
-        renderer.xr.setSession(session);
-        vrBtnEl.textContent = 'IN VR';
+        try {
+          const session = await navigator.xr.requestSession('immersive-vr', {
+            optionalFeatures: ['local-floor', 'hand-tracking']
+          });
+          renderer.xr.setSession(session);
+          vrBtnEl.textContent = 'IN VR';
+        } catch (e) {
+          console.error('VR session error:', e);
+          vrBtnEl.textContent = 'VR ERROR';
+        }
       });
     } else {
       vrBtnEl.textContent = 'VR N/A';
     }
+  }).catch(e => {
+    console.error('WebXR check failed:', e);
+    vrBtnEl.textContent = 'VR ERR';
   });
 } else {
   vrBtnEl.textContent = 'NO WebXR';
